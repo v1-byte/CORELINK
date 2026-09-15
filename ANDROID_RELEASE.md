@@ -34,3 +34,5 @@ Untuk CORELINK dan Ollama pada HP yang sama gunakan `http://127.0.0.1:11434`. Un
 TypeScript check, Vite production build, Gradle release build, APK metadata, dan Android APK signature sudah diverifikasi. Pengujian pada perangkat fisik tetap diperlukan karena kompatibilitas Android System WebView dan ROM berbeda-beda. Jika aplikasi masih gagal dibuka, ambil log dengan `adb logcat -s CORELINK:V`.
 - Layout revisi: panel Bridge + model berada dalam satu panel navbar yang bisa dibuka/tutup lewat tombol BRIDGE; tombol TOOLS membuka connector drawer; workspace chat diperbesar menjadi area utama.
 - Logo AI Connector dan label AI BRAIN memakai animasi pulse terus-menerus; tombol `+` di composer tetap menjadi pemilih attachment.
+- Navbar final kini berupa empat tab nyata: `CHAT`, `BRIDGE`, `TOOLS`, dan `SETUP`.
+- Kolom pesan final memakai input multi-baris 96dp dengan tombol `+` attachment 46dp dan tombol `SEND` 82dp.
