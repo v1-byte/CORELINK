@@ -83,7 +83,7 @@ public class MainActivity extends Activity {
     private LinearLayout toolsPanel;
     private LinearLayout setupPanel;
     private LinearLayout chatPanel;
-    private Button tabChat, tabBridge, tabTools, tabSetup;
+    private Button tabChat, tabBridge, tabTools, tabSetup, sendBtn;
     private View thinkingView;
     private TextView thinkingDots;
 
@@ -201,7 +201,7 @@ public class MainActivity extends Activity {
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
         bubble.setMinimumWidth(dp(80));
-        // max width handled via LayoutParams
+        bubble.setElevation(dp(3));
 
         TextView meta = makeText(isUser ? "YOU" : "CORELINK AI", 9, isUser ? GREEN : BLUE);
         meta.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
@@ -223,10 +223,39 @@ public class MainActivity extends Activity {
         return row;
     }
 
+    /** Animate bubble in: slide + fade + slight scale (feels real when sending) */
+    private void animateBubbleIn(View row, boolean fromRight) {
+        row.setAlpha(0f);
+        row.setTranslationX(fromRight ? dp(36) : -dp(36));
+        row.setTranslationY(dp(12));
+        row.setScaleX(0.92f);
+        row.setScaleY(0.92f);
+        row.animate()
+                .alpha(1f)
+                .translationX(0f)
+                .translationY(0f)
+                .scaleX(1f)
+                .scaleY(1f)
+                .setDuration(280)
+                .setInterpolator(new android.view.animation.DecelerateInterpolator(1.6f))
+                .start();
+    }
+
+    private void smoothScrollToBottom() {
+        chatScroll.post(() -> {
+            chatScroll.smoothScrollTo(0, messagesContainer.getBottom());
+            // second pass after layout settles
+            chatScroll.postDelayed(() ->
+                    chatScroll.fullScroll(View.FOCUS_DOWN), 80);
+        });
+    }
+
     private void addMessage(String role, String text) {
+        boolean isUser = "user".equals(role);
         View bubble = createBubble(role, text);
         messagesContainer.addView(bubble);
-        chatScroll.post(() -> chatScroll.fullScroll(View.FOCUS_DOWN));
+        animateBubbleIn(bubble, isUser);
+        smoothScrollToBottom();
     }
 
     // ─── Thinking animation ──────────────────────────────────────────────────
@@ -252,6 +281,7 @@ public class MainActivity extends Activity {
         avLp.rightMargin = dp(8);
         avatar.setLayoutParams(avLp);
 
+        // Bubble with 3 bouncing dots
         LinearLayout bubble = new LinearLayout(this);
         bubble.setOrientation(LinearLayout.HORIZONTAL);
         bubble.setGravity(Gravity.CENTER_VERTICAL);
@@ -260,28 +290,61 @@ public class MainActivity extends Activity {
         bg.setCornerRadii(new float[]{dp(16), dp(16), dp(16), dp(16), dp(16), dp(16), dp(4), dp(4)});
         bg.setStroke(dp(1), Color.rgb(35, 80, 115));
         bubble.setBackground(bg);
-        bubble.setPadding(dp(16), dp(12), dp(16), dp(12));
+        bubble.setPadding(dp(16), dp(14), dp(16), dp(14));
+        bubble.setElevation(dp(2));
 
-        thinkingDots = makeText("Thinking", 13, MUTED);
+        thinkingDots = makeText("Thinking", 12, MUTED);
         thinkingDots.setTypeface(Typeface.MONOSPACE);
+        thinkingDots.setPadding(0, 0, dp(10), 0);
         bubble.addView(thinkingDots);
+
+        // Three animated dots
+        LinearLayout dotsRow = new LinearLayout(this);
+        dotsRow.setOrientation(LinearLayout.HORIZONTAL);
+        dotsRow.setGravity(Gravity.CENTER_VERTICAL);
+        final View[] dots = new View[3];
+        for (int i = 0; i < 3; i++) {
+            View dot = new View(this);
+            GradientDrawable d = new GradientDrawable();
+            d.setShape(GradientDrawable.OVAL);
+            d.setColor(BLUE);
+            dot.setBackground(d);
+            LinearLayout.LayoutParams dlp = lp(7, 7);
+            if (i > 0) dlp.leftMargin = dp(5);
+            dotsRow.addView(dot, dlp);
+            dots[i] = dot;
+        }
+        bubble.addView(dotsRow);
 
         row.addView(avatar);
         row.addView(bubble);
         thinkingView = row;
         messagesContainer.addView(thinkingView);
-        chatScroll.post(() -> chatScroll.fullScroll(View.FOCUS_DOWN));
+        animateBubbleIn(thinkingView, false);
+        smoothScrollToBottom();
 
+        // Bounce dots + text
         thinkingDotState = 0;
         thinkingAnimator = new Runnable() {
             @Override
             public void run() {
                 if (!isThinking || thinkingDots == null) return;
                 thinkingDotState = (thinkingDotState + 1) % 4;
-                String dots = "";
-                for (int i = 0; i < thinkingDotState; i++) dots += ".";
-                thinkingDots.setText("Thinking" + dots);
-                mainHandler.postDelayed(this, 380);
+                String d = "";
+                for (int i = 0; i < thinkingDotState; i++) d += ".";
+                thinkingDots.setText("Thinking" + d);
+
+                // Pulse each dot in sequence
+                int active = thinkingDotState % 3;
+                for (int i = 0; i < 3; i++) {
+                    final View dot = dots[i];
+                    if (dot == null) continue;
+                    float scale = (i == active) ? 1.35f : 0.85f;
+                    float alpha = (i == active) ? 1f : 0.45f;
+                    dot.animate().scaleX(scale).scaleY(scale).alpha(alpha)
+                            .setDuration(160).start();
+                }
+                mainHandler.postDelayed(this, 320);
             }
         };
         mainHandler.post(thinkingAnimator);
@@ -291,9 +354,17 @@ public class MainActivity extends Activity {
         isThinking = false;
         if (thinkingAnimator != null) mainHandler.removeCallbacks(thinkingAnimator);
         if (thinkingView != null) {
-            messagesContainer.removeView(thinkingView);
+            final View v = thinkingView;
             thinkingView = null;
             thinkingDots = null;
+            v.animate()
+                    .alpha(0f)
+                    .translationY(-dp(8))
+                    .scaleX(0.95f)
+                    .scaleY(0.95f)
+                    .setDuration(180)
+                    .withEndAction(() -> messagesContainer.removeView(v))
+                    .start();
         }
     }
 
@@ -498,7 +569,7 @@ public class MainActivity extends Activity {
         inputRow.addView(inputWrap, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
 
         // Small arrow send
-        Button sendBtn = new Button(this);
+        sendBtn = new Button(this);
         sendBtn.setText("➤");
         sendBtn.setTextSize(16);
         sendBtn.setTextColor(Color.WHITE);
@@ -773,9 +844,20 @@ public class MainActivity extends Activity {
         String q = promptInput.getText().toString().trim();
         if (q.isEmpty() || isThinking) return;
 
+        // Button press feedback
+        if (sendBtn != null) {
+            sendBtn.animate().scaleX(0.82f).scaleY(0.82f).setDuration(70)
+                    .withEndAction(() -> sendBtn.animate().scaleX(1f).scaleY(1f).setDuration(120).start())
+                    .start();
+            sendBtn.setEnabled(false);
+            sendBtn.setAlpha(0.55f);
+        }
+        promptInput.setEnabled(false);
+
         addMessage("user", q);
         promptInput.setText("");
-        showThinking();
+        // slight delay so user bubble animation plays before thinking appears
+        mainHandler.postDelayed(this::showThinking, 160);
 
         String selected = modelSpinner.getSelectedItem() == null
                 ? "qwen2.5-coder:1.5b"
@@ -806,7 +888,16 @@ public class MainActivity extends Activity {
                 final String finalAnswer = answer;
                 runOnUiThread(() -> {
                     hideThinking();
-                    addMessage("assistant", finalAnswer);
+                    // small delay so thinking fade-out finishes before AI bubble enters
+                    mainHandler.postDelayed(() -> {
+                        addMessage("assistant", finalAnswer);
+                        if (sendBtn != null) {
+                            sendBtn.setEnabled(true);
+                            sendBtn.setAlpha(1f);
+                        }
+                        promptInput.setEnabled(true);
+                        promptInput.requestFocus();
+                    }, 200);
                     attachmentBase64 = "";
                     attachmentName = "";
                     attachmentLabel.setVisibility(View.GONE);
@@ -814,8 +905,15 @@ public class MainActivity extends Activity {
             } catch (Exception e) {
                 runOnUiThread(() -> {
                     hideThinking();
-                    addMessage("assistant", "Gagal: " + e.getMessage() +
-                            "\n\nPastikan Bridge berjalan di " + bridge);
+                    mainHandler.postDelayed(() -> {
+                        addMessage("assistant", "Gagal: " + e.getMessage() +
+                                "\n\nPastikan Bridge berjalan di " + bridge);
+                        if (sendBtn != null) {
+                            sendBtn.setEnabled(true);
+                            sendBtn.setAlpha(1f);
+                        }
+                        promptInput.setEnabled(true);
+                    }, 200);
                 });
             }
         });
