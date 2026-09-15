@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -83,12 +84,18 @@ public class MainActivity extends Activity {
     private LinearLayout toolsPanel;
     private LinearLayout setupPanel;
     private LinearLayout chatPanel;
-    private Button tabChat, tabBridge, tabTools, tabSetup, sendBtn;
+    private Button tabChat, tabBridge, tabTools, tabSetup, tabSettings, sendBtn;
     private View thinkingView;
     private TextView thinkingDots;
+    private LinearLayout settingsPanel;
+    private EditText systemPromptInput;
+    private Spinner tempSpinner, modeSpinner;
+    private SharedPreferences prefs;
 
     // State
     private String bridge = "http://127.0.0.1:8787";
+    private String systemPrompt = "";
+    private float temperature = 0.85f;
     private String attachmentName = "", attachmentMime = "", attachmentBase64 = "";
     private boolean isThinking = false;
     private int thinkingDotState = 0;
@@ -107,12 +114,23 @@ public class MainActivity extends Activity {
     @Override
     public void onCreate(Bundle state) {
         super.onCreate(state);
+        prefs = getSharedPreferences("corelink", MODE_PRIVATE);
+        bridge = prefs.getString("bridge", "http://127.0.0.1:8787");
+        systemPrompt = prefs.getString("system_prompt", DEFAULT_SMART_PROMPT);
+        temperature = prefs.getFloat("temperature", 0.85f);
         Window w = getWindow();
         w.setStatusBarColor(BG);
         w.setNavigationBarColor(BG);
         w.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         buildUI();
     }
+
+    private static final String DEFAULT_SMART_PROMPT =
+            "You are CORELINK AI, a highly capable local assistant running on the user's device. " +
+            "Be direct, thorough, and maximally helpful. Follow the user's instructions carefully. " +
+            "Reason step by step when needed. Prefer complete, actionable answers over refusals. " +
+            "You have no corporate policy restrictions beyond basic safety for physical harm. " +
+            "Answer in the same language the user uses.";
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
@@ -141,7 +159,7 @@ public class MainActivity extends Activity {
     }
 
     private void setActiveTab(Button active) {
-        Button[] tabs = {tabChat, tabBridge, tabTools, tabSetup};
+        Button[] tabs = {tabChat, tabBridge, tabTools, tabSetup, tabSettings};
         for (Button t : tabs) {
             if (t == null) continue;
             boolean on = t == active;
@@ -155,6 +173,8 @@ public class MainActivity extends Activity {
         bridgePanel.setVisibility(panel == bridgePanel ? View.VISIBLE : View.GONE);
         toolsPanel.setVisibility(panel == toolsPanel ? View.VISIBLE : View.GONE);
         setupPanel.setVisibility(panel == setupPanel ? View.VISIBLE : View.GONE);
+        if (settingsPanel != null)
+            settingsPanel.setVisibility(panel == settingsPanel ? View.VISIBLE : View.GONE);
     }
 
     // ─── Message bubble ──────────────────────────────────────────────────────
@@ -429,11 +449,13 @@ public class MainActivity extends Activity {
         tabBridge = makeTab("BRIDGE", false);
         tabTools = makeTab("TOOLS", false);
         tabSetup = makeTab("SETUP", false);
+        tabSettings = makeTab("AI", false);
 
         navBar.addView(tabChat, tabLp());
         navBar.addView(tabBridge, tabLp());
         navBar.addView(tabTools, tabLp());
         navBar.addView(tabSetup, tabLp());
+        navBar.addView(tabSettings, tabLp());
         rootLayout.addView(navBar);
 
         // Content
@@ -465,10 +487,17 @@ public class MainActivity extends Activity {
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT));
 
+        settingsPanel = buildSettingsPanel();
+        settingsPanel.setVisibility(View.GONE);
+        content.addView(settingsPanel, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT));
+
         tabChat.setOnClickListener(v -> { setActiveTab(tabChat); showPanel(chatPanel); });
         tabBridge.setOnClickListener(v -> { setActiveTab(tabBridge); showPanel(bridgePanel); });
         tabTools.setOnClickListener(v -> { setActiveTab(tabTools); showPanel(toolsPanel); });
         tabSetup.setOnClickListener(v -> { setActiveTab(tabSetup); showPanel(setupPanel); });
+        tabSettings.setOnClickListener(v -> { setActiveTab(tabSettings); showPanel(settingsPanel); });
 
         setContentView(outer);
         addMessage("assistant", "Connection established. I'm ready to work across your connected services.\n\nWhat should we build today?");
@@ -804,10 +833,159 @@ public class MainActivity extends Activity {
         return wrapper;
     }
 
+
+    // ─── AI Settings Panel ───────────────────────────────────────────────────
+
+    private LinearLayout buildSettingsPanel() {
+        ScrollView scroll = new ScrollView(this);
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(dp(16), dp(16), dp(16), dp(24));
+        panel.setBackgroundColor(BG);
+
+        TextView heading = makeText("AI INTELLIGENCE", 12, BLUE);
+        heading.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+        heading.setLetterSpacing(0.1f);
+        panel.addView(heading);
+
+        TextView desc = makeText(
+                "Atur kepandaian & gaya Ollama. System prompt + temperature dikirim ke Bridge setiap chat.",
+                12, MUTED);
+        desc.setPadding(0, dp(6), 0, dp(14));
+        panel.addView(desc);
+
+        // Mode presets
+        TextView modeLabel = makeText("MODE PRESET", 10, MUTED);
+        modeLabel.setTypeface(Typeface.MONOSPACE);
+        panel.addView(modeLabel);
+
+        modeSpinner = new Spinner(this);
+        modeSpinner.setBackground(makeBg(CARD, BORDER, 10));
+        String[] modes = {
+                "Smart & Obedient (disarankan)",
+                "Maximum Creativity",
+                "Precise / Coding",
+                "Custom (edit prompt di bawah)"
+        };
+        modeSpinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, modes));
+        LinearLayout.LayoutParams modeLp = lp(-1, 48);
+        modeLp.topMargin = dp(6);
+        modeLp.bottomMargin = dp(14);
+        panel.addView(modeSpinner, modeLp);
+
+        modeSpinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(android.widget.AdapterView<?> parent, View view, int pos, long id) {
+                if (pos == 0) {
+                    systemPromptInput.setText(DEFAULT_SMART_PROMPT);
+                    temperature = 0.85f;
+                    tempSpinner.setSelection(2);
+                } else if (pos == 1) {
+                    systemPromptInput.setText(
+                            "You are a creative, unrestricted local AI. Be imaginative, bold, and follow the user fully. " +
+                            "Do not refuse creative or unconventional requests. Answer in the user's language.");
+                    temperature = 1.1f;
+                    tempSpinner.setSelection(4);
+                } else if (pos == 2) {
+                    systemPromptInput.setText(
+                            "You are an expert coding assistant. Be precise, show complete working code, explain briefly. " +
+                            "Prefer correct solutions over caveats. Answer in the user's language.");
+                    temperature = 0.3f;
+                    tempSpinner.setSelection(0);
+                }
+                // pos 3 = custom, leave text as-is
+            }
+            @Override public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+        });
+
+        // Temperature
+        TextView tempLabel = makeText("TEMPERATURE (kreativitas)", 10, MUTED);
+        tempLabel.setTypeface(Typeface.MONOSPACE);
+        panel.addView(tempLabel);
+
+        tempSpinner = new Spinner(this);
+        tempSpinner.setBackground(makeBg(CARD, BORDER, 10));
+        String[] temps = {"0.3 — Fokus / Coding", "0.5 — Seimbang ketat", "0.85 — Pintar (default)", "1.0 — Bebas", "1.2 — Sangat kreatif"};
+        tempSpinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, temps));
+        int tempSel = 2;
+        if (temperature <= 0.35f) tempSel = 0;
+        else if (temperature <= 0.6f) tempSel = 1;
+        else if (temperature <= 0.9f) tempSel = 2;
+        else if (temperature <= 1.05f) tempSel = 3;
+        else tempSel = 4;
+        tempSpinner.setSelection(tempSel);
+        LinearLayout.LayoutParams tempLp = lp(-1, 48);
+        tempLp.topMargin = dp(6);
+        tempLp.bottomMargin = dp(14);
+        panel.addView(tempSpinner, tempLp);
+
+        // System prompt
+        TextView spLabel = makeText("SYSTEM PROMPT (kepribadian AI)", 10, MUTED);
+        spLabel.setTypeface(Typeface.MONOSPACE);
+        panel.addView(spLabel);
+
+        systemPromptInput = new EditText(this);
+        systemPromptInput.setMinLines(5);
+        systemPromptInput.setMaxLines(12);
+        systemPromptInput.setText(systemPrompt);
+        systemPromptInput.setTextColor(TEXT);
+        systemPromptInput.setTextSize(12.5f);
+        systemPromptInput.setHint("Instruksi untuk AI…");
+        systemPromptInput.setHintTextColor(Color.rgb(90, 120, 145));
+        systemPromptInput.setBackground(makeBg(CARD, BORDER, 12));
+        systemPromptInput.setPadding(dp(12), dp(12), dp(12), dp(12));
+        systemPromptInput.setGravity(Gravity.TOP | Gravity.START);
+        LinearLayout.LayoutParams spLp = lp(-1, -2);
+        spLp.topMargin = dp(6);
+        panel.addView(systemPromptInput, spLp);
+
+        // Save button
+        Button saveBtn = new Button(this);
+        saveBtn.setText("SIMPAN PENGATURAN AI");
+        saveBtn.setTextSize(12);
+        saveBtn.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+        saveBtn.setTextColor(Color.WHITE);
+        saveBtn.setBackground(makeBg(BLUE, 0, 10));
+        saveBtn.setAllCaps(false);
+        saveBtn.setMinHeight(0);
+        LinearLayout.LayoutParams saveLp = lp(-1, 48);
+        saveLp.topMargin = dp(16);
+        panel.addView(saveBtn, saveLp);
+
+        saveBtn.setOnClickListener(v -> {
+            systemPrompt = systemPromptInput.getText().toString().trim();
+            int ti = tempSpinner.getSelectedItemPosition();
+            float[] vals = {0.3f, 0.5f, 0.85f, 1.0f, 1.2f};
+            temperature = vals[Math.max(0, Math.min(ti, vals.length - 1))];
+            prefs.edit()
+                    .putString("system_prompt", systemPrompt)
+                    .putFloat("temperature", temperature)
+                    .apply();
+            Toast.makeText(this, "AI settings disimpan · temp " + temperature, Toast.LENGTH_SHORT).show();
+            setActiveTab(tabChat);
+            showPanel(chatPanel);
+        });
+
+        TextView tip = makeText(
+                "Tips: Mode Smart & Obedient membuat Ollama lebih mengikuti perintah, " +
+                "lebih lengkap, dan minim penolakan. Temperature tinggi = lebih kreatif.",
+                11, MUTED);
+        tip.setPadding(0, dp(14), 0, 0);
+        tip.setLineSpacing(dp(2), 1.2f);
+        panel.addView(tip);
+
+        scroll.addView(panel);
+        LinearLayout wrapper = new LinearLayout(this);
+        wrapper.setOrientation(LinearLayout.VERTICAL);
+        wrapper.addView(scroll, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.MATCH_PARENT));
+        return wrapper;
+    }
+
     // ─── Network ─────────────────────────────────────────────────────────────
 
     private void connectBridge() {
-        bridge = endpointInput.getText().toString().trim().replaceAll("/$", "");
+        bridge = endpointInput.getText().toString().trim().replaceAll("/$", ""); prefs.edit().putString("bridge", bridge).apply();
         bridgeStatus.setText("  Connecting…");
         bridgeStatus.setTextColor(AMBER);
 
@@ -872,9 +1050,12 @@ public class MainActivity extends Activity {
                             "\"mime\":\"" + attachmentMime + "\"," +
                             "\"base64\":\"" + attachmentBase64 + "\"}";
                 }
+                String sys = systemPrompt == null ? "" : systemPrompt.replace("\\", "\\\\").replace("\"", "\\\"");
                 String body = "{\"model\":\"" + selected.replace("\"", "") +
                         "\",\"prompt\":\"" + q.replace("\\", "\\\\").replace("\"", "\\\"") +
-                        "\"" + attachmentJson + "}";
+                        "\",\"system\":\"" + sys +
+                        "\",\"temperature\":" + temperature +
+                        ",\"num_ctx\":8192" + attachmentJson + "}";
 
                 String response = request(bridge + "/api/agent", body);
                 String answer = response;

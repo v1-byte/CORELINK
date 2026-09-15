@@ -55,19 +55,30 @@ function chooseTool(prompt = "") {
   for (const tool of tools.slice(1)) if (tool.examples.some((word) => q.includes(word))) return tool.name;
   return "ollama";
 }
-async function runTool(name, prompt, model, attachment) {
+async function runTool(name, prompt, model, attachment, extras = {}) {
   if (name === "github") return cloudRequest("github", "/user/repos?per_page=100");
   if (name === "gitlab") return cloudRequest("gitlab", "/projects?membership=true&per_page=100");
   if (name === "vercel") return cloudRequest("vercel", "/v9/projects");
   if (name === "supabase") return cloudRequest("supabase", "/v1/projects");
   if (name === "huggingface") return cloudRequest("huggingface", "/models?limit=20");
-  if (name === "docker") return command("docker", ["ps", "--format", "table {{.Names}}\\t{{.Status}}\\t{{.Image}}"]);
+  if (name === "docker") return command("docker", ["ps", "--format", "table {{.Names}}\t{{.Status}}\t{{.Image}}"]);
   if (name === "cloudflared") return command("cloudflared", ["tunnel", "list"]);
-  const payload = { model: model || process.env.OLLAMA_MODEL || "qwen2.5-coder:1.5b", prompt, stream: false, options: { num_ctx: 4096 } };
+  const temperature = Number(extras.temperature ?? 0.85);
+  const num_ctx = Number(extras.num_ctx ?? 8192);
+  const system = String(extras.system || "").trim();
+  let finalPrompt = prompt;
+  if (system) finalPrompt = `${system}\n\n---\nUser request:\n${prompt}`;
+  const payload = {
+    model: model || process.env.OLLAMA_MODEL || "qwen2.5-coder:1.5b",
+    prompt: finalPrompt,
+    stream: false,
+    system: system || undefined,
+    options: { num_ctx, temperature, top_p: Number(extras.top_p ?? 0.95), repeat_penalty: Number(extras.repeat_penalty ?? 1.1) }
+  };
   if (attachment?.base64 && attachment.mime?.startsWith("image/")) payload.images = [attachment.base64];
   else if (attachment?.base64) {
     const raw = Buffer.from(attachment.base64, "base64").toString("utf8").slice(0, 120000);
-    payload.prompt = `${prompt}\n\nAttached file: ${attachment.name || "file"}\n\n${raw}`;
+    payload.prompt = `${finalPrompt}\n\nAttached file: ${attachment.name || "file"}\n\n${raw}`;
   }
   const result = await fetchJson(`${OLLAMA_URL}/api/generate`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }, 120000);
   return result.ok ? { configured: true, tool: "ollama", output: result.data?.response || "Ollama returned no response" } : { configured: true, tool: "ollama", error: result.data };
@@ -76,7 +87,14 @@ async function agentRun(body) {
   const prompt = String(body.prompt || "").trim(); const tool = chooseTool(prompt);
   if (!prompt) return { ok: false, error: "Prompt is required" };
   if (dangerousWords.some((word) => prompt.toLowerCase().includes(word)) && body.confirmed !== true) return { ok: false, requires_confirmation: true, tool, message: `This request may perform a consequential action with ${tool}. Confirm it explicitly before execution.` };
-  const started = Date.now(); const result = await runTool(tool, prompt, body.model, body.attachment);
+  const extras = {
+    system: body.system,
+    temperature: body.temperature,
+    top_p: body.top_p,
+    num_ctx: body.num_ctx,
+    repeat_penalty: body.repeat_penalty
+  };
+  const started = Date.now(); const result = await runTool(tool, prompt, body.model, body.attachment, extras);
   return { ok: result.ok !== false, tool, duration_ms: Date.now() - started, result };
 }
 
