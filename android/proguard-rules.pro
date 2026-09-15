@@ -1,0 +1,4 @@
+-keep class com.v1byte.corelink.MainActivity { *; }
+-keep class com.v1byte.corelink.** { *; }
+-keepattributes *Annotation*
+-dontwarn okhttp3.**
