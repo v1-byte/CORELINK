@@ -16,6 +16,7 @@ Fitur yang tersedia:
 - Endpoint dan model terakhir disimpan secara lokal.
 - Layout mobile dirapikan agar sidebar tidak menutupi chat, menu connector dapat dibuka/tutup, dan modal setup menyesuaikan layar HP.
 - Panduan Termux menjelaskan `pkg install`, `ollama serve`, endpoint Bridge `8787`, dan perbedaan port Ollama `11434`.
+- APK terbaru memakai dashboard Android native dengan header branding, kartu koneksi Bridge, pemilih model, chat workspace, dan input pesan; WebView tidak dipakai untuk layar utama native.
 
 ## Ollama di Termux
 
