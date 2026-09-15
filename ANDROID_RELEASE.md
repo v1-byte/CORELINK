@@ -42,3 +42,22 @@ TypeScript check, Vite production build, Gradle release build, APK metadata, dan
 - Composer setelah audit lebar: input memakai seluruh ruang horizontal yang tersisa; tombol SEND dipadatkan menjadi 62x52dp sehingga kolom pesan lebih lebar di layar HP.
 - Professional UI pass: safe horizontal spacing reduced for mobile, logo enlarged, elevated navigation/cards/chat surfaces, clearer empty chat state, 14sp composer typography, and improved attachment status text.
 - Input visibility fix: composer menjadi 110dp, teks input putih 15sp dengan hint kontras, maksimal 5 baris, dan Activity memakai `adjustResize` supaya keyboard tidak menutupi input.
+
+---
+
+## UI Professional Update (2026-09-16)
+
+Tampilan native Android telah di-upgrade menjadi lebih profesional:
+
+- **Pesan user** di sisi kanan dengan bubble hijau gelap + radius khusus
+- **Respons AI** di sisi kiri dengan bubble biru gelap + radius khusus
+- Area chat **scrollable** + **auto-scroll** ke bawah saat pesan baru
+- **Composer fixed** di bawah layar
+- Tombol **+** berada di dalam composer (upload file/gambar)
+- Tombol kirim berupa **ikon panah kecil** (➤)
+- **Keyboard** tidak menutupi composer (WindowInsets + SOFT_INPUT_ADJUST_RESIZE)
+- Status **Thinking...** dengan **animasi titik**
+- Navbar **CHAT / BRIDGE / TOOLS / SETUP** sebagai panel terpisah
+- Navbar tidak mengganggu area chat
+- Warna & spacing diseragamkan agar terlihat clean dan profesional
+
