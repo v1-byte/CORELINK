@@ -201,7 +201,7 @@ public class MainActivity extends Activity {
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
         bubble.setMinimumWidth(dp(80));
-        bubble.setMaxWidth((int) (getResources().getDisplayMetrics().widthPixels * 0.78));
+        // max width handled via LayoutParams
 
         TextView meta = makeText(isUser ? "YOU" : "CORELINK AI", 9, isUser ? GREEN : BLUE);
         meta.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
