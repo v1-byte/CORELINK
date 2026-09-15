@@ -1,5 +1,42 @@
 plugins { id 'com.android.application' }
-android { namespace 'com.v1byte.corelink'; compileSdk 35
-    defaultConfig { applicationId 'com.v1byte.corelink'; minSdk 23; targetSdk 35; versionCode 6; versionName '1.2.0' }
+
+android {
+    namespace 'com.v1byte.corelink'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.v1byte.corelink'
+        minSdk 23
+        targetSdk 35
+        versionCode 6
+        versionName '1.2.0'
+    }
+
+    signingConfigs {
+        // Release signing reads credentials from environment variables set in CI or local shell.
+        release {
+            def keystorePath = System.getenv("ANDROID_KEYSTORE_PATH") ?: (System.getenv("GITHUB_WORKSPACE") ?: project.rootDir.absolutePath) + "/keystore.jks"
+            if (file(keystorePath).exists()) {
+                storeFile file(keystorePath)
+            }
+            storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+            keyAlias System.getenv("ANDROID_KEY_ALIAS")
+            keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+        }
+    }
+
+    buildTypes {
+        release {
+            // Enable minification for smaller APK and basic obfuscation (R8)
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            // Use the release signing config when available
+            signingConfig signingConfigs.release
+        }
+        debug {
+            minifyEnabled false
+        }
+    }
 }
+
 dependencies { implementation 'androidx.webkit:webkit:1.12.1' }
