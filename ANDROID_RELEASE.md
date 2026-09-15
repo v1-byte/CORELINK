@@ -36,3 +36,5 @@ TypeScript check, Vite production build, Gradle release build, APK metadata, dan
 - Logo AI Connector dan label AI BRAIN memakai animasi pulse terus-menerus; tombol `+` di composer tetap menjadi pemilih attachment.
 - Navbar final kini berupa empat tab nyata: `CHAT`, `BRIDGE`, `TOOLS`, dan `SETUP`.
 - Kolom pesan final memakai input multi-baris 96dp dengan tombol `+` attachment 46dp dan tombol `SEND` 82dp.
+- Pemeriksaan tombol Chat: navbar kini benar-benar menampilkan tombol `CHAT` sebagai tab aktif, bukan label `CHAT / OLLAMA`.
+- Composer diperbesar menjadi input multi-baris 96dp agar penulisan pesan nyaman di HP.
