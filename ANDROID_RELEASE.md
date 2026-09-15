@@ -1,6 +1,6 @@
 # CORELINK Android release
 
-Build terakhir: **1.1.0 / versionCode 4**.
+Build terakhir: **1.1.1 / versionCode 5**.
 
 Fitur yang tersedia:
 
@@ -14,6 +14,8 @@ Fitur yang tersedia:
 - Streaming respons `/api/generate`.
 - Timeout 120 detik dan tombol Stop.
 - Endpoint dan model terakhir disimpan secara lokal.
+- Layout mobile dirapikan agar sidebar tidak menutupi chat, menu connector dapat dibuka/tutup, dan modal setup menyesuaikan layar HP.
+- Panduan Termux menjelaskan `pkg install`, `ollama serve`, endpoint Bridge `8787`, dan perbedaan port Ollama `11434`.
 
 ## Ollama di Termux
 
