@@ -30,7 +30,7 @@ export default function Home() {
   const [preview, setPreview] = useState<string | null>(null);
   const [flowOpen, setFlowOpen] = useState(true);
   const [activeConnector, setActiveConnector] = useState("GitHub");
-  const [ollamaUrl, setOllamaUrl] = useState(() => localStorage.getItem("corelink-ollama-url") || "http://127.0.0.1:11434");
+  const [bridgeUrl, setBridgeUrl] = useState(() => localStorage.getItem("corelink-bridge-url") || "http://127.0.0.1:8787");
   const [ollamaOnline, setOllamaOnline] = useState(false);
   const [models, setModels] = useState<string[]>([]);
   const [model, setModel] = useState(() => localStorage.getItem("corelink-ollama-model") || "qwen2.5-coder:1.5b");
@@ -47,7 +47,7 @@ export default function Home() {
       const timer = window.setTimeout(() => controller.abort(), 120000);
       const answerTime = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
       setMessages((m) => [...m, { role: "assistant", text: "", time: answerTime }]);
-      fetch(`${ollamaUrl.replace(/\/$/, "")}/api/generate`, { signal: controller.signal, method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model, prompt: value, stream: true, options: { num_ctx: 2048 } }) })
+      fetch(`${bridgeUrl.replace(/\/$/, "")}/api/ollama/generate`, { signal: controller.signal, method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model, prompt: value, stream: true, options: { num_ctx: 2048 } }) })
         .then(async (response) => {
           if (!response.ok || !response.body) throw new Error(`Ollama HTTP ${response.status}`);
           const reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = "";
@@ -60,21 +60,21 @@ export default function Home() {
         .finally(() => { window.clearTimeout(timer); setThinking(false); abortRef.current = null; });
     } else {
       window.setTimeout(() => {
-        setMessages((m) => [...m, { role: "assistant", text: `Mode preview aktif. Hubungkan Ollama di ${ollamaUrl} untuk menjadikan Termux sebagai otak CORELINK.`, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) }]);
+        setMessages((m) => [...m, { role: "assistant", text: `Mode preview aktif. Jalankan CORELINK Bridge di ${bridgeUrl} untuk mengaktifkan connector Termux.`, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) }]);
         setThinking(false);
       }, 950);
     }
   };
   const connectOllama = async () => {
-    const value = window.prompt("Ollama endpoint", ollamaUrl)?.trim();
+    const value = window.prompt("CORELINK Bridge endpoint", bridgeUrl)?.trim();
     if (!value) return;
     const normalized = value.replace(/\/$/, "");
-    setOllamaUrl(normalized); localStorage.setItem("corelink-ollama-url", normalized);
-    try { const response = await fetch(`${normalized}/api/tags`, { signal: AbortSignal.timeout(8000) }); if (!response.ok) throw new Error(); const data = await response.json(); const names = (data.models || []).map((entry: { name: string }) => entry.name); setModels(names); if (names.length && !names.includes(model)) { setModel(names[0]); localStorage.setItem("corelink-ollama-model", names[0]); } setOllamaOnline(true); toast.success(`Ollama connected · ${names.length} model(s)`); }
+    setBridgeUrl(normalized); localStorage.setItem("corelink-bridge-url", normalized);
+    try { const health = await fetch(`${normalized}/health`, { signal: AbortSignal.timeout(8000) }); if (!health.ok) throw new Error(); const response = await fetch(`${normalized}/api/ollama/tags`, { signal: AbortSignal.timeout(8000) }); if (!response.ok) throw new Error(); const data = await response.json(); const names = (data.models || []).map((entry: { name: string }) => entry.name); setModels(names); if (names.length && !names.includes(model)) { setModel(names[0]); localStorage.setItem("corelink-ollama-model", names[0]); } setOllamaOnline(true); toast.success(`Bridge connected · ${names.length} Ollama model(s)`); }
     catch { setOllamaOnline(false); toast.error("Ollama belum dapat dijangkau"); }
   };
   useEffect(() => { connectOllamaSilently(); }, []);
-  const connectOllamaSilently = async () => { try { const response = await fetch(`${ollamaUrl.replace(/\/$/, "")}/api/tags`, { signal: AbortSignal.timeout(4000) }); if (!response.ok) return; const data = await response.json(); setModels((data.models || []).map((entry: { name: string }) => entry.name)); setOllamaOnline(true); } catch { setOllamaOnline(false); } };
+  const connectOllamaSilently = async () => { try { const health = await fetch(`${bridgeUrl.replace(/\/$/, "")}/health`, { signal: AbortSignal.timeout(4000) }); if (!health.ok) return; const response = await fetch(`${bridgeUrl.replace(/\/$/, "")}/api/ollama/tags`, { signal: AbortSignal.timeout(4000) }); if (!response.ok) return; const data = await response.json(); setModels((data.models || []).map((entry: { name: string }) => entry.name)); setOllamaOnline(true); } catch { setOllamaOnline(false); } };
   const copy = (text: string) => { navigator.clipboard?.writeText(text); toast.success("Copied to clipboard"); };
 
   return <div className="app-shell">
@@ -91,7 +91,7 @@ export default function Home() {
         <div className="chat-canvas"><div className={`brain-stage ${messages.length > 0 ? "compact" : ""} ${thinking ? "thinking" : ""}`}><div className="orbit orbit-one"/><div className="orbit orbit-two"/><div className="brain-glow"><BrainCircuit size={messages.length > 0 ? 58 : 112}/></div><span className="brain-label">{thinking ? "PROCESSING REQUEST" : "NEURAL LINK ACTIVE"}</span></div>
           <div className="messages">{messages.map((m, i) => <div key={i} className={`message ${m.role}`}><div className="message-avatar">{m.role === "assistant" ? <Sparkles size={14}/> : "FB"}</div><div className="message-body"><div className="message-meta"><strong>{m.role === "assistant" ? "CORELINK AI" : "YOU"}</strong><span>{m.time}</span></div><p>{m.text}</p>{m.code && <div className="code-block"><div className="code-head"><span><Code2 size={13}/> BASH</span><button onClick={() => copy(m.code!)}><Copy size={13}/> Copy</button></div><pre>{m.code}</pre></div>} {m.role === "assistant" && <div className="message-tools"><button onClick={() => copy(m.text)}><Clipboard size={13}/> Copy</button><button onClick={() => setPreview(m.text)}><Eye size={13}/> Preview</button></div>}</div></div>)}</div>
         </div>
-        <div className="composer"><div className="composer-inner"><textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => {if(e.key === "Enter" && !e.shiftKey){e.preventDefault(); sendMessage()}}} placeholder={ollamaOnline ? `Ask ${model} through CORELINK...` : "Ask CORELINK anything..."} rows={1}/><div className="composer-actions"><span><Command size={12}/> K</span>{thinking ? <button onClick={() => abortRef.current?.abort()} className="send-btn stop-btn" aria-label="Stop">■</button> : <button onClick={sendMessage} className="send-btn" aria-label="Send"><Send size={16}/></button>}</div></div><div className="composer-foot"><span><MessageSquare size={12}/> {ollamaOnline ? `Live Ollama · ${ollamaUrl}` : "Preview mode · connect Ollama to enable the brain"}</span><span>SHIFT + ENTER for new line</span></div></div>
+        <div className="composer"><div className="composer-inner"><textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => {if(e.key === "Enter" && !e.shiftKey){e.preventDefault(); sendMessage()}}} placeholder={ollamaOnline ? `Ask ${model} through CORELINK...` : "Ask CORELINK anything..."} rows={1}/><div className="composer-actions"><span><Command size={12}/> K</span>{thinking ? <button onClick={() => abortRef.current?.abort()} className="send-btn stop-btn" aria-label="Stop">■</button> : <button onClick={sendMessage} className="send-btn" aria-label="Send"><Send size={16}/></button>}</div></div><div className="composer-foot"><span><MessageSquare size={12}/> {ollamaOnline ? `Live Bridge · ${bridgeUrl}` : "Preview mode · start CORELINK Bridge to enable connectors"}</span><span>SHIFT + ENTER for new line</span></div></div>
       </main>
       <aside className={`flow-panel ${flowOpen ? "" : "collapsed"}`}><div className="flow-heading"><div><span className="eyebrow">OBSERVABILITY</span><h2>Connection flow</h2></div><button className="icon-btn" onClick={() => setFlowOpen(!flowOpen)}>{flowOpen ? <PanelRightClose size={16}/> : <PanelRightOpen size={16}/>}</button></div>{flowOpen && <><div className="flow-status"><span className="pulse-ring"><i/></span><div><strong>Sync in progress</strong><small>Last event 2s ago</small></div><span className="percent">72%</span></div><div className="flow-steps"><div className="flow-step done"><span>01</span><div><strong>Auth init</strong><small>service-account.json</small></div><b>✓</b></div><div className="flow-line done"/><div className="flow-step done"><span>02</span><div><strong>Git fetch</strong><small>3 repositories indexed</small></div><b>✓</b></div><div className="flow-line active"/><div className="flow-step active"><span>03</span><div><strong>AI indexing</strong><small>embedding code context</small></div><b className="spinner">◌</b></div><div className="flow-line"/><div className="flow-step"><span>04</span><div><strong>Cloudflared</strong><small>waiting for edge route</small></div><b>—</b></div></div><div className="terminal"><div className="terminal-head"><span><i/> LIVE TERMINAL</span><span>● REC</span></div><div className="terminal-body"><p><em>$</em> cloudflared tunnel run</p><p className="success">✓ Connected to edge</p><p className="dim">➜ https://corelink-edge.trycloudflare.com</p><p><em>$</em> ollama serve</p><p className="success">✓ qwen2.5-coder:1.5b loaded</p><span className="cursor"/></div></div><div className="flow-footer"><span><Activity size={13}/> 4 services monitored</span><button onClick={() => toast.success("Flow refreshed")}>Refresh <Zap size={12}/></button></div></>}</aside>
     </div>
