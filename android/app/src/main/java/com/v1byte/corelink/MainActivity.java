@@ -15,6 +15,7 @@ import android.graphics.Typeface;
 import android.view.Gravity;
 import android.view.ViewGroup;
 import android.content.Context;
+import android.util.Log;
 import androidx.webkit.WebViewAssetLoader;
 
 public class MainActivity extends Activity {
@@ -51,13 +52,14 @@ public class MainActivity extends Activity {
                     return assetLoader.shouldInterceptRequest(android.net.Uri.parse(url));
                 }
                 @Override public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
-                    if (request.isForMainFrame()) showFallback(MainActivity.this, "CORELINK gagal memuat tampilan. Perbarui Android System WebView lalu coba lagi.");
+                    if (request.isForMainFrame()) { Log.e("CORELINK", "WebView main frame error: " + error); showFallback(MainActivity.this, "CORELINK gagal memuat tampilan. Perbarui Android System WebView lalu coba lagi."); }
                 }
             });
             CookieManager.getInstance().setAcceptCookie(true);
             setContentView(webView, new ViewGroup.LayoutParams(-1, -1));
             webView.loadUrl("https://appassets.androidplatform.net/assets/index.html");
         } catch (Throwable error) {
+            Log.e("CORELINK", "Startup failure", error);
             showFallback(this, "CORELINK tidak dapat dimulai pada perangkat ini.");
         }
     }

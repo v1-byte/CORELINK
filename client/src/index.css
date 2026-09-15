@@ -17,3 +17,7 @@ button { cursor: pointer; }
 @keyframes pulse { 0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.08);opacity:1} } @keyframes think { 50%{transform:scale(1.14)} } @keyframes spin { to{transform:rotate(360deg)} } @keyframes blink { 50%{opacity:0} }
 @media (max-width:1100px){.workspace{grid-template-columns:220px minmax(0,1fr)}.flow-panel{display:none}.composer{padding-inline:6%}.chat-canvas{padding-inline:6%}} @media (max-width:720px){.topbar{padding:0 14px}.top-actions .live-dot{display:none}.workspace{display:block}.connectors-panel{position:fixed;z-index:10;top:68px;bottom:0;left:0;width:260px;box-shadow:12px 0 40px #0008}.chat-top{padding-inline:16px}.chat-canvas{padding-inline:16px}.composer{padding-inline:16px}.composer-foot{font-size:7px}.brain-stage{height:120px}.chat-top-actions .connection-pill{display:none}}
 @media (prefers-reduced-motion: reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+.model-select { max-width:170px; border:1px solid #174b67; border-radius:7px; padding:6px 8px; background:#0b1d2b; color:#8fc8df; font:9px 'DM Mono'; outline:0; }
+.connection-pill .offline { background:#d5a63e; box-shadow:0 0 8px #d5a63e; }
+.stop-btn { background:#7d3046; }
