@@ -1,0 +1,14 @@
+/* Added connector animations and banner styles */
+
+.brain-stage.thinking .orbit { transform-origin: center; animation: orbit-rotate 2.6s linear infinite; }
+@keyframes orbit-rotate { to { transform: rotate(360deg); } }
+
+.message.assistant .typing { background: linear-gradient(90deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)); animation: typing 1.2s steps(20) infinite; }
+@keyframes typing { 0% { background-position: 0 0 } 100% { background-position: 100% 0 } }
+
+/* Banner small adjustments */
+.connector-banner .bg-amber-400 { background-color: #f59e0b; }
+.connector-banner .bg-emerald-400 { background-color: #34d399; }
+
+/* Nav chat column transformations */
+.nav-chat-column { will-change: transform; }
