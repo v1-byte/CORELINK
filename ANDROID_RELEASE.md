@@ -38,3 +38,4 @@ TypeScript check, Vite production build, Gradle release build, APK metadata, dan
 - Kolom pesan final memakai input multi-baris 96dp dengan tombol `+` attachment 46dp dan tombol `SEND` 82dp.
 - Pemeriksaan tombol Chat: navbar kini benar-benar menampilkan tombol `CHAT` sebagai tab aktif, bukan label `CHAT / OLLAMA`.
 - Composer diperbesar menjadi input multi-baris 96dp agar penulisan pesan nyaman di HP.
+- Composer final: tombol `+` berada di dalam kotak input sebelah kiri; input multi-baris tetap besar; tombol `SEND` dipadatkan menjadi 68x52dp di sebelah kanan.
