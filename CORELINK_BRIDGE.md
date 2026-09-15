@@ -42,7 +42,9 @@ Bridge berjalan di `http://127.0.0.1:8787`.
 | `GET /api/supabase/projects` | Project Supabase token |
 | `GET /api/huggingface/models` | Model publik HuggingFace |
 | `POST /api/docker` | Command Docker terbatas dari bridge |
-| `POST /api/cloudflared` | Command Cloudflared dari bridge |
+| `POST /api/cloudflared` | Command Cloudflared dari Bridge |
+| `GET /api/tools` | Registry tool yang dapat dipilih agent |
+| `POST /api/agent` | Chat agent: memilih tool berdasarkan permintaan dan mengembalikan hasil ke chat |
 
 ## Environment token
 
@@ -50,4 +52,4 @@ Isi hanya token dengan scope minimum di `.env`: `GITHUB_TOKEN`, `GITLAB_TOKEN`, 
 
 ## Batasan release ini
 
-Adapter read/status dan proxy chat sudah tersedia. Operasi mutasi berisiko seperti push repository, delete project, deploy production, dan perubahan database belum diekspos sebagai endpoint default; operasi tersebut perlu konfirmasi UI dan scope token yang tepat sebelum diaktifkan.
+Adapter read/status dan proxy chat tersedia. `/api/agent` menjadi router chat-first: permintaan GitHub, GitLab, Vercel, Supabase, HuggingFace/Meta, Docker, atau Cloudflared diarahkan ke tool yang sesuai; pertanyaan umum diarahkan ke Ollama. Operasi mutasi berisiko seperti push repository, delete project, deploy production, dan perubahan database memerlukan `confirmed: true` dan belum diekspos sebagai operasi mutasi default.

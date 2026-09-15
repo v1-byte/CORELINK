@@ -1,6 +1,6 @@
 # CORELINK Android release
 
-Build terakhir: **1.1.1 / versionCode 5**.
+Build terakhir: **1.2.0 / versionCode 6**.
 
 Fitur yang tersedia:
 
@@ -17,6 +17,7 @@ Fitur yang tersedia:
 - Layout mobile dirapikan agar sidebar tidak menutupi chat, menu connector dapat dibuka/tutup, dan modal setup menyesuaikan layar HP.
 - Panduan Termux menjelaskan `pkg install`, `ollama serve`, endpoint Bridge `8787`, dan perbedaan port Ollama `11434`.
 - APK terbaru memakai dashboard Android native dengan header branding, kartu koneksi Bridge, pemilih model, chat workspace, dan input pesan; WebView tidak dipakai untuk layar utama native.
+- Chat native menjadi agent entry point: Bridge memilih tool Ollama, GitHub, GitLab, Vercel, Supabase, HuggingFace/Meta, Docker, atau Cloudflared berdasarkan permintaan chat. Connector berada di drawer terlipat, bukan memenuhi layar.
 
 ## Ollama di Termux
 
