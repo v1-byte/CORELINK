@@ -40,3 +40,4 @@ TypeScript check, Vite production build, Gradle release build, APK metadata, dan
 - Composer diperbesar menjadi input multi-baris 96dp agar penulisan pesan nyaman di HP.
 - Composer final: tombol `+` berada di dalam kotak input sebelah kiri; input multi-baris tetap besar; tombol `SEND` dipadatkan menjadi 68x52dp di sebelah kanan.
 - Composer setelah audit lebar: input memakai seluruh ruang horizontal yang tersisa; tombol SEND dipadatkan menjadi 62x52dp sehingga kolom pesan lebih lebar di layar HP.
+- Professional UI pass: safe horizontal spacing reduced for mobile, logo enlarged, elevated navigation/cards/chat surfaces, clearer empty chat state, 14sp composer typography, and improved attachment status text.
