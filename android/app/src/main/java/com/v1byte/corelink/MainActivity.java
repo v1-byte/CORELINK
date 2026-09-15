@@ -84,13 +84,15 @@ public class MainActivity extends Activity {
     private LinearLayout toolsPanel;
     private LinearLayout setupPanel;
     private LinearLayout chatPanel;
-    private Button tabChat, tabBridge, tabTools, tabSetup, tabSettings, sendBtn;
+    private Button tabChat, tabBridge, tabTools, tabSetup, tabSettings, tabRemote, sendBtn;
     private View thinkingView;
     private TextView thinkingDots;
-    private LinearLayout settingsPanel;
+    private LinearLayout settingsPanel, remotePanel;
     private EditText systemPromptInput;
     private Spinner tempSpinner, modeSpinner;
+    private TextView aConnectTokenView, aConnectStatusView;
     private SharedPreferences prefs;
+    private String aConnectToken = "";
 
     // State
     private String bridge = "http://127.0.0.1:8787";
@@ -159,7 +161,7 @@ public class MainActivity extends Activity {
     }
 
     private void setActiveTab(Button active) {
-        Button[] tabs = {tabChat, tabBridge, tabTools, tabSetup, tabSettings};
+        Button[] tabs = {tabChat, tabBridge, tabTools, tabSetup, tabSettings, tabRemote};
         for (Button t : tabs) {
             if (t == null) continue;
             boolean on = t == active;
@@ -175,6 +177,8 @@ public class MainActivity extends Activity {
         setupPanel.setVisibility(panel == setupPanel ? View.VISIBLE : View.GONE);
         if (settingsPanel != null)
             settingsPanel.setVisibility(panel == settingsPanel ? View.VISIBLE : View.GONE);
+        if (remotePanel != null)
+            remotePanel.setVisibility(panel == remotePanel ? View.VISIBLE : View.GONE);
     }
 
     // ─── Message bubble ──────────────────────────────────────────────────────
@@ -445,17 +449,20 @@ public class MainActivity extends Activity {
         navBar.setPadding(dp(10), dp(8), dp(10), dp(8));
         navBar.setBackgroundColor(SURFACE);
 
+        // Compact labels so 6 tabs fit on phone
         tabChat = makeTab("CHAT", true);
-        tabBridge = makeTab("BRIDGE", false);
+        tabBridge = makeTab("LINK", false);
         tabTools = makeTab("TOOLS", false);
         tabSetup = makeTab("SETUP", false);
         tabSettings = makeTab("AI", false);
+        tabRemote = makeTab("REMOTE", false);
 
         navBar.addView(tabChat, tabLp());
         navBar.addView(tabBridge, tabLp());
         navBar.addView(tabTools, tabLp());
         navBar.addView(tabSetup, tabLp());
         navBar.addView(tabSettings, tabLp());
+        navBar.addView(tabRemote, tabLp());
         rootLayout.addView(navBar);
 
         // Content
@@ -493,11 +500,18 @@ public class MainActivity extends Activity {
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT));
 
+        remotePanel = buildRemotePanel();
+        remotePanel.setVisibility(View.GONE);
+        content.addView(remotePanel, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT));
+
         tabChat.setOnClickListener(v -> { setActiveTab(tabChat); showPanel(chatPanel); });
         tabBridge.setOnClickListener(v -> { setActiveTab(tabBridge); showPanel(bridgePanel); });
         tabTools.setOnClickListener(v -> { setActiveTab(tabTools); showPanel(toolsPanel); });
         tabSetup.setOnClickListener(v -> { setActiveTab(tabSetup); showPanel(setupPanel); });
         tabSettings.setOnClickListener(v -> { setActiveTab(tabSettings); showPanel(settingsPanel); });
+        tabRemote.setOnClickListener(v -> { setActiveTab(tabRemote); showPanel(remotePanel); });
 
         setContentView(outer);
         addMessage("assistant", "Connection established. I'm ready to work across your connected services.\n\nWhat should we build today?");
@@ -833,6 +847,243 @@ public class MainActivity extends Activity {
         return wrapper;
     }
 
+
+
+    // ─── Remote panel: MyBase + A-Connect (UI list first, logic later) ───────
+
+    private LinearLayout buildRemotePanel() {
+        ScrollView scroll = new ScrollView(this);
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(dp(14), dp(14), dp(14), dp(28));
+        panel.setBackgroundColor(BG);
+
+        TextView heading = makeText("REMOTE MODULES", 12, BLUE);
+        heading.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+        heading.setLetterSpacing(0.08f);
+        panel.addView(heading);
+
+        TextView sub = makeText(
+                "Daftar fitur siap dikembangkan. Saat ini UI + alur token; engine remote menyusul.",
+                11, MUTED);
+        sub.setPadding(0, dp(4), 0, dp(12));
+        panel.addView(sub);
+
+        // ── Card 1: MyBase ──
+        panel.addView(sectionTitle("①  MYBASE", "Device shield & analysis"));
+        LinearLayout myBase = card();
+        myBase.addView(bodyText(
+                "Modul analisis di perangkat ini (bukan spionase app lain tanpa izin).\n\n" +
+                "Rencana fungsi:\n" +
+                "• Scan ancaman lokal (permission mencurigakan, APK tidak dikenal)\n" +
+                "• Ringkasan kesehatan perangkat\n" +
+                "• Deteksi konfigurasi berisiko\n" +
+                "• Laporan aman yang bisa dibaca user / admin support\n\n" +
+                "Status: daftar fitur — engine belum aktif."));
+        LinearLayout mbRow = new LinearLayout(this);
+        mbRow.setOrientation(LinearLayout.HORIZONTAL);
+        mbRow.setPadding(0, dp(10), 0, 0);
+        Button mbScan = smallBtn("SCAN (soon)", Color.rgb(22, 64, 88));
+        Button mbReport = smallBtn("LAPORAN (soon)", Color.rgb(22, 64, 88));
+        mbRow.addView(mbScan, rowBtnLp());
+        mbRow.addView(mbReport, rowBtnLp());
+        myBase.addView(mbRow);
+        mbScan.setOnClickListener(v ->
+                Toast.makeText(this, "MyBase scan engine akan ditambahkan bertahap.", Toast.LENGTH_SHORT).show());
+        mbReport.setOnClickListener(v ->
+                Toast.makeText(this, "Laporan MyBase belum tersedia.", Toast.LENGTH_SHORT).show());
+        panel.addView(myBase);
+
+        // ── Card 2: A-Connect ──
+        panel.addView(sectionTitle("②  A-CONNECT", "Remote support Desktop / Android"));
+        LinearLayout aConn = card();
+        aConn.addView(bodyText(
+                "Remote support dengan persetujuan eksplisit.\n\n" +
+                "Alur:\n" +
+                "1. USER buka A-Connect → Generate Token\n" +
+                "2. USER kirim token ke ADMIN (chat / QR nanti)\n" +
+                "3. ADMIN masukkan token → sesi support dimulai\n" +
+                "4. Sesi bisa dihentikan kapan saja oleh USER\n\n" +
+                "Bukan remote diam-diam. Harus token + izin user."));
+
+        // Role buttons
+        LinearLayout roleRow = new LinearLayout(this);
+        roleRow.setOrientation(LinearLayout.HORIZONTAL);
+        roleRow.setPadding(0, dp(10), 0, 0);
+        Button asUser = smallBtn("SAYA USER", BLUE);
+        Button asAdmin = smallBtn("SAYA ADMIN", Color.rgb(22, 90, 70));
+        roleRow.addView(asUser, rowBtnLp());
+        roleRow.addView(asAdmin, rowBtnLp());
+        aConn.addView(roleRow);
+
+        aConnectStatusView = makeText("Mode: belum dipilih", 11, MUTED);
+        aConnectStatusView.setTypeface(Typeface.MONOSPACE);
+        aConnectStatusView.setPadding(0, dp(10), 0, 0);
+        aConn.addView(aConnectStatusView);
+
+        aConnectTokenView = makeText("Token: —", 13, TEXT);
+        aConnectTokenView.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+        aConnectTokenView.setPadding(0, dp(6), 0, 0);
+        aConn.addView(aConnectTokenView);
+
+        LinearLayout tokRow = new LinearLayout(this);
+        tokRow.setOrientation(LinearLayout.HORIZONTAL);
+        tokRow.setPadding(0, dp(10), 0, 0);
+        Button genTok = smallBtn("GENERATE TOKEN", BLUE);
+        Button copyTok = smallBtn("SALIN", Color.rgb(22, 64, 88));
+        Button stopSes = smallBtn("STOP SESI", Color.rgb(90, 40, 40));
+        tokRow.addView(genTok, rowBtnLp());
+        tokRow.addView(copyTok, rowBtnLp());
+        tokRow.addView(stopSes, rowBtnLp());
+        aConn.addView(tokRow);
+
+        EditText adminTokenIn = new EditText(this);
+        adminTokenIn.setHint("Admin: tempel token user di sini");
+        adminTokenIn.setHintTextColor(Color.rgb(90, 120, 145));
+        adminTokenIn.setTextColor(TEXT);
+        adminTokenIn.setTextSize(12);
+        adminTokenIn.setSingleLine(true);
+        adminTokenIn.setBackground(makeBg(Color.rgb(8, 15, 24), BORDER, 10));
+        adminTokenIn.setPadding(dp(12), dp(10), dp(12), dp(10));
+        adminTokenIn.setVisibility(View.GONE);
+        LinearLayout.LayoutParams atLp = lp(-1, -2);
+        atLp.topMargin = dp(10);
+        aConn.addView(adminTokenIn, atLp);
+
+        Button adminConnect = smallBtn("HUBUNGKAN KE USER", Color.rgb(22, 90, 70));
+        adminConnect.setVisibility(View.GONE);
+        LinearLayout.LayoutParams acLp = lp(-1, 44);
+        acLp.topMargin = dp(8);
+        aConn.addView(adminConnect, acLp);
+
+        asUser.setOnClickListener(v -> {
+            aConnectStatusView.setText("Mode: USER (perangkat yang dibantu)");
+            aConnectStatusView.setTextColor(GREEN);
+            adminTokenIn.setVisibility(View.GONE);
+            adminConnect.setVisibility(View.GONE);
+            genTok.setVisibility(View.VISIBLE);
+        });
+        asAdmin.setOnClickListener(v -> {
+            aConnectStatusView.setText("Mode: ADMIN (pemberi bantuan remote)");
+            aConnectStatusView.setTextColor(AMBER);
+            adminTokenIn.setVisibility(View.VISIBLE);
+            adminConnect.setVisibility(View.VISIBLE);
+        });
+        genTok.setOnClickListener(v -> {
+            // Local token only — no network control yet
+            String tok = "AC-" + Long.toString(System.currentTimeMillis(), 36).toUpperCase()
+                    + "-" + Integer.toHexString((int) (Math.random() * 0xFFFFF)).toUpperCase();
+            aConnectToken = tok;
+            prefs.edit().putString("aconnect_token", tok).apply();
+            aConnectTokenView.setText("Token: " + tok);
+            aConnectStatusView.setText("Mode: USER · token siap dibagikan ke admin");
+            aConnectStatusView.setTextColor(GREEN);
+            Toast.makeText(this, "Token dibuat. Kirim ke admin support.", Toast.LENGTH_SHORT).show();
+        });
+        copyTok.setOnClickListener(v -> {
+            if (aConnectToken == null || aConnectToken.isEmpty()) {
+                aConnectToken = prefs.getString("aconnect_token", "");
+            }
+            if (aConnectToken.isEmpty()) {
+                Toast.makeText(this, "Belum ada token. Generate dulu.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            cm.setPrimaryClip(ClipData.newPlainText("A-Connect token", aConnectToken));
+            Toast.makeText(this, "Token disalin.", Toast.LENGTH_SHORT).show();
+        });
+        stopSes.setOnClickListener(v -> {
+            aConnectToken = "";
+            prefs.edit().remove("aconnect_token").apply();
+            aConnectTokenView.setText("Token: —");
+            aConnectStatusView.setText("Sesi dihentikan / tidak aktif");
+            aConnectStatusView.setTextColor(MUTED);
+            Toast.makeText(this, "Sesi A-Connect dihentikan (lokal).", Toast.LENGTH_SHORT).show();
+        });
+        adminConnect.setOnClickListener(v -> {
+            String t = adminTokenIn.getText().toString().trim();
+            if (t.isEmpty()) {
+                Toast.makeText(this, "Tempel token dari user dulu.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            aConnectStatusView.setText("Admin · token diterima (engine remote belum aktif)");
+            aConnectStatusView.setTextColor(AMBER);
+            Toast.makeText(this, "Token dicatat. Koneksi remote engine menyusul.", Toast.LENGTH_LONG).show();
+        });
+
+        // restore token if any
+        aConnectToken = prefs.getString("aconnect_token", "");
+        if (aConnectToken != null && !aConnectToken.isEmpty()) {
+            aConnectTokenView.setText("Token: " + aConnectToken);
+        }
+
+        panel.addView(aConn);
+
+        TextView note = makeText(
+                "Catatan keamanan: A-Connect dirancang untuk support dengan izin. " +
+                "Tidak ada kontrol diam-diam. Engine remote (layar/file) akan ditambah bertahap.",
+                10, MUTED);
+        note.setPadding(0, dp(14), 0, 0);
+        note.setLineSpacing(dp(2), 1.15f);
+        panel.addView(note);
+
+        scroll.addView(panel);
+        LinearLayout wrapper = new LinearLayout(this);
+        wrapper.setOrientation(LinearLayout.VERTICAL);
+        wrapper.addView(scroll, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.MATCH_PARENT));
+        return wrapper;
+    }
+
+    private View sectionTitle(String title, String subtitle) {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(0, dp(10), 0, dp(4));
+        TextView t = makeText(title, 11, BLUE);
+        t.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+        TextView s = makeText(subtitle, 10, MUTED);
+        box.addView(t);
+        box.addView(s);
+        return box;
+    }
+
+    private LinearLayout card() {
+        LinearLayout c = new LinearLayout(this);
+        c.setOrientation(LinearLayout.VERTICAL);
+        c.setBackground(makeBg(CARD, BORDER, 14));
+        c.setPadding(dp(14), dp(12), dp(14), dp(14));
+        LinearLayout.LayoutParams lp = lp(-1, -2);
+        lp.bottomMargin = dp(12);
+        c.setLayoutParams(lp);
+        return c;
+    }
+
+    private TextView bodyText(String s) {
+        TextView t = makeText(s, 12, TEXT);
+        t.setLineSpacing(dp(2), 1.2f);
+        return t;
+    }
+
+    private Button smallBtn(String label, int color) {
+        Button b = new Button(this);
+        b.setText(label);
+        b.setTextSize(9);
+        b.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+        b.setAllCaps(false);
+        b.setTextColor(Color.WHITE);
+        b.setBackground(makeBg(color, 0, 8));
+        b.setMinHeight(0);
+        b.setMinWidth(0);
+        b.setPadding(dp(6), dp(8), dp(6), dp(8));
+        return b;
+    }
+
+    private LinearLayout.LayoutParams rowBtnLp() {
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(0, dp(40), 1);
+        p.setMargins(dp(2), 0, dp(2), 0);
+        return p;
+    }
 
     // ─── AI Settings Panel ───────────────────────────────────────────────────
 

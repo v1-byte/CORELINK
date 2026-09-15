@@ -6,7 +6,7 @@ on:
       version:
         description: 'Version tag (e.g. v1.3.0)'
         required: true
-        default: 'v1.4.0'
+        default: 'v1.5.0'
   push:
     tags:
       - 'v*'
@@ -63,7 +63,7 @@ jobs:
           APK=$(find android/app/build/outputs/apk -name "*.apk" | head -1)
           echo "APK found: $APK"
           ls -lh "$APK"
-          cp "$APK" CORELINK-1.4.0.apk
+          cp "$APK" CORELINK-1.5.0.apk
           echo "path=$APK" >> $GITHUB_OUTPUT
 
       - name: Version
@@ -97,7 +97,7 @@ jobs:
             4. Tab **BRIDGE** → Connect
           files: |
             ${{ steps.apk.outputs.path }}
-            CORELINK-1.4.0.apk
+            CORELINK-1.5.0.apk
           draft: false
           prerelease: false
         env:
