@@ -61,3 +61,13 @@ Tampilan native Android telah di-upgrade menjadi lebih profesional:
 - Navbar tidak mengganggu area chat
 - Warna & spacing diseragamkan agar terlihat clean dan profesional
 
+
+---
+
+## v1.5.0 — REMOTE tab (pengingat)
+
+- Tab **REMOTE** di navbar: **MyBase** + **A-Connect**.
+- **MyBase**: daftar fitur analisis perangkat sendiri (engine scan menyusul).
+- **A-Connect**: alur USER/ADMIN, generate & salin token, stop sesi (relay remote menyusul).
+- Lihat **REMOTE_MODULES.md** dan **README.md** agar tidak lupa batasan keamanan (token + izin, bukan akses diam-diam).
+
