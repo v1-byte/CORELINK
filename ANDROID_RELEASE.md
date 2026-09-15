@@ -1,6 +1,6 @@
 # CORELINK Android release
 
-Build terakhir: **1.0.3 / versionCode 3**.
+Build terakhir: **1.1.0 / versionCode 4**.
 
 Fitur yang tersedia:
 
