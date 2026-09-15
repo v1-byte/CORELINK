@@ -18,6 +18,7 @@ Fitur yang tersedia:
 - Panduan Termux menjelaskan `pkg install`, `ollama serve`, endpoint Bridge `8787`, dan perbedaan port Ollama `11434`.
 - APK terbaru memakai dashboard Android native dengan header branding, kartu koneksi Bridge, pemilih model, chat workspace, dan input pesan; WebView tidak dipakai untuk layar utama native.
 - Chat native menjadi agent entry point: Bridge memilih tool Ollama, GitHub, GitLab, Vercel, Supabase, HuggingFace/Meta, Docker, atau Cloudflared berdasarkan permintaan chat. Connector berada di drawer terlipat, bukan memenuhi layar.
+- Tombol koneksi dipadatkan menjadi `CONNECT` agar tidak terpotong pada layar HP sempit; tombol `+` pada composer dapat memilih gambar, HTML, TXT, JSON, PDF, atau file lain untuk dikirim ke agent.
 
 ## Ollama di Termux
 

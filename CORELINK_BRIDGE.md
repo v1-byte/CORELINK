@@ -44,7 +44,7 @@ Bridge berjalan di `http://127.0.0.1:8787`.
 | `POST /api/docker` | Command Docker terbatas dari bridge |
 | `POST /api/cloudflared` | Command Cloudflared dari Bridge |
 | `GET /api/tools` | Registry tool yang dapat dipilih agent |
-| `POST /api/agent` | Chat agent: memilih tool berdasarkan permintaan dan mengembalikan hasil ke chat |
+| `POST /api/agent` | Chat agent: memilih tool berdasarkan permintaan dan mengembalikan hasil ke chat; menerima `attachment` base64 |
 
 ## Environment token
 
@@ -53,3 +53,5 @@ Isi hanya token dengan scope minimum di `.env`: `GITHUB_TOKEN`, `GITLAB_TOKEN`, 
 ## Batasan release ini
 
 Adapter read/status dan proxy chat tersedia. `/api/agent` menjadi router chat-first: permintaan GitHub, GitLab, Vercel, Supabase, HuggingFace/Meta, Docker, atau Cloudflared diarahkan ke tool yang sesuai; pertanyaan umum diarahkan ke Ollama. Operasi mutasi berisiko seperti push repository, delete project, deploy production, dan perubahan database memerlukan `confirmed: true` dan belum diekspos sebagai operasi mutasi default.
+
+APK dapat memilih gambar, HTML, TXT, JSON, PDF, dan tipe file lain melalui tombol `+`. Gambar dikirim ke model Ollama sebagai `images`; file non-gambar dibaca sebagai UTF-8 dan dikirim sebagai konteks teks dengan batas 120.000 karakter.
