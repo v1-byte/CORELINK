@@ -25,6 +25,20 @@ android {
         }
     }
 
+    flavorDimensions "app"
+    productFlavors {
+        controller {
+            dimension "app"
+            applicationIdSuffix ".controller"
+            resValue "string", "app_name", "CORELINK Controller"
+        }
+        agent {
+            dimension "app"
+            applicationIdSuffix ".agent"
+            resValue "string", "app_name", "CORELINK Agent"
+        }
+    }
+
     buildTypes {
         release {
             // Enable minification for smaller APK and basic obfuscation (R8)
@@ -39,4 +53,8 @@ android {
     }
 }
 
-dependencies { implementation 'androidx.webkit:webkit:1.12.1' }
+dependencies {
+    implementation 'androidx.webkit:webkit:1.12.1'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.9.0'
+}
