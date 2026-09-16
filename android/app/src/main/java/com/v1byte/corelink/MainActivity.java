@@ -104,14 +104,38 @@ public class MainActivity extends Activity {
     private Runnable thinkingAnimator;
     private static final int PICK_FILE = 401;
 
-    private final String setupCommands =
+    // Tutorial copy-paste — tanpa nano, langsung jalan
+    private final String setupStep1 =
             "pkg update -y\n" +
             "pkg install -y nodejs git curl\n" +
             "git clone https://github.com/v1-byte/CORELINK.git\n" +
             "cd CORELINK/bridge\n" +
             "cp config.template .env\n" +
-            "nano .env\n" +
             "bash start-termux.sh";
+
+    private final String setupStep2 =
+            "ollama pull qwen2.5-coder:1.5b\n" +
+            "ollama serve";
+
+    private final String setupStep3 = "http://127.0.0.1:8787";
+
+    private final String setupAllInOne =
+            "# ===== LANGKAH 1: Bridge (sesi Termux 1) =====\n" +
+            "pkg update -y\n" +
+            "pkg install -y nodejs git curl\n" +
+            "git clone https://github.com/v1-byte/CORELINK.git\n" +
+            "cd CORELINK/bridge\n" +
+            "cp config.template .env\n" +
+            "bash start-termux.sh\n" +
+            "\n" +
+            "# ===== LANGKAH 2: Ollama (sesi Termux 2 — buka tab baru) =====\n" +
+            "# ollama pull qwen2.5-coder:1.5b\n" +
+            "# ollama serve\n" +
+            "\n" +
+            "# ===== LANGKAH 3: Di app CORELINK =====\n" +
+            "# Tab LINK → endpoint: http://127.0.0.1:8787 → CONNECT\n" +
+            "# Lalu tab CHAT → kirim pesan\n" +
+            "# Jangan pakai port 11434 di app (itu port Ollama, bukan Bridge)";
 
     @Override
     public void onCreate(Bundle state) {
@@ -786,57 +810,112 @@ public class MainActivity extends Activity {
 
     // ─── Setup Panel ─────────────────────────────────────────────────────────
 
+    private void copyText(String label, String value) {
+        ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+        cm.setPrimaryClip(ClipData.newPlainText(label, value));
+        Toast.makeText(this, "Disalin. Tempel di Termux.", Toast.LENGTH_SHORT).show();
+    }
+
+    private Button setupCopyBtn(String title, String payload) {
+        Button b = new Button(this);
+        b.setText(title);
+        b.setTextSize(11);
+        b.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+        b.setTextColor(Color.WHITE);
+        b.setBackground(makeBg(BLUE, 0, 10));
+        b.setAllCaps(false);
+        b.setMinHeight(0);
+        b.setPadding(dp(10), dp(12), dp(10), dp(12));
+        LinearLayout.LayoutParams p = lp(-1, -2);
+        p.topMargin = dp(8);
+        b.setLayoutParams(p);
+        b.setOnClickListener(v -> copyText(title, payload));
+        return b;
+    }
+
     private LinearLayout buildSetupPanel() {
         ScrollView scroll = new ScrollView(this);
         LinearLayout panel = new LinearLayout(this);
         panel.setOrientation(LinearLayout.VERTICAL);
-        panel.setPadding(dp(16), dp(16), dp(16), dp(24));
+        panel.setPadding(dp(16), dp(16), dp(16), dp(28));
         panel.setBackgroundColor(BG);
 
-        TextView heading = makeText("BRIDGE SETUP", 12, BLUE);
+        TextView heading = makeText("TUTORIAL LENGKAP", 12, BLUE);
         heading.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
-        heading.setLetterSpacing(0.1f);
+        heading.setLetterSpacing(0.08f);
         panel.addView(heading);
 
-        TextView desc = makeText("Copy the commands below and paste them into Termux.", 12, MUTED);
-        desc.setPadding(0, dp(6), 0, dp(14));
+        TextView desc = makeText(
+                "Ikuti 3 langkah. Tiap tombol = copy → tempel di Termux. Tidak perlu nano.",
+                12, MUTED);
+        desc.setPadding(0, dp(6), 0, dp(12));
         panel.addView(desc);
 
-        TextView codeBox = makeText(setupCommands, 11, Color.rgb(170, 215, 232));
-        codeBox.setTypeface(Typeface.MONOSPACE);
-        codeBox.setTextIsSelectable(true);
-        codeBox.setBackground(makeBg(CARD, BORDER, 12));
-        codeBox.setPadding(dp(14), dp(14), dp(14), dp(14));
-        panel.addView(codeBox);
+        // STEP 1
+        TextView s1 = makeText("LANGKAH 1 — Bridge (Termux sesi 1)", 11, GREEN);
+        s1.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+        panel.addView(s1);
+        TextView s1d = makeText("Install + clone + jalankan Bridge. Biarkan sesi ini tetap terbuka.", 11, MUTED);
+        s1d.setPadding(0, dp(4), 0, dp(6));
+        panel.addView(s1d);
 
-        Button copyBtn = new Button(this);
-        copyBtn.setText("COPY COMMANDS");
-        copyBtn.setTextSize(12);
-        copyBtn.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
-        copyBtn.setTextColor(Color.WHITE);
-        copyBtn.setBackground(makeBg(BLUE, 0, 10));
-        copyBtn.setAllCaps(false);
-        copyBtn.setMinHeight(0);
-        LinearLayout.LayoutParams copyLp = lp(-1, 46);
-        copyLp.topMargin = dp(12);
-        panel.addView(copyBtn, copyLp);
-        copyBtn.setOnClickListener(v -> {
-            ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-            cm.setPrimaryClip(ClipData.newPlainText("CORELINK setup", setupCommands));
-            Toast.makeText(this, "Copied. Paste in Termux.", Toast.LENGTH_SHORT).show();
-        });
+        TextView box1 = makeText(setupStep1, 10, Color.rgb(170, 215, 232));
+        box1.setTypeface(Typeface.MONOSPACE);
+        box1.setTextIsSelectable(true);
+        box1.setBackground(makeBg(CARD, BORDER, 12));
+        box1.setPadding(dp(12), dp(12), dp(12), dp(12));
+        panel.addView(box1);
+        panel.addView(setupCopyBtn("SALIN LANGKAH 1 (Bridge)", setupStep1));
 
-        TextView note = makeText(
-                "After running the script:\n" +
-                "1. ollama serve\n" +
-                "2. Connect to http://127.0.0.1:8787\n\n" +
-                "Do NOT use port 11434 in the app.\n" +
-                "The app talks to Bridge on 8787.",
-                12, MUTED);
-        note.setTypeface(Typeface.MONOSPACE);
-        note.setPadding(0, dp(16), 0, 0);
-        note.setLineSpacing(dp(2), 1.2f);
-        panel.addView(note);
+        // STEP 2
+        TextView s2 = makeText("LANGKAH 2 — Ollama (Termux sesi 2)", 11, GREEN);
+        s2.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+        s2.setPadding(0, dp(18), 0, 0);
+        panel.addView(s2);
+        TextView s2d = makeText("Buka tab/sesi Termux BARU. Jangan tutup sesi Bridge.", 11, MUTED);
+        s2d.setPadding(0, dp(4), 0, dp(6));
+        panel.addView(s2d);
+
+        TextView box2 = makeText(setupStep2, 10, Color.rgb(170, 215, 232));
+        box2.setTypeface(Typeface.MONOSPACE);
+        box2.setTextIsSelectable(true);
+        box2.setBackground(makeBg(CARD, BORDER, 12));
+        box2.setPadding(dp(12), dp(12), dp(12), dp(12));
+        panel.addView(box2);
+        panel.addView(setupCopyBtn("SALIN LANGKAH 2 (Ollama)", setupStep2));
+
+        // STEP 3
+        TextView s3 = makeText("LANGKAH 3 — Hubungkan di app ini", 11, GREEN);
+        s3.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+        s3.setPadding(0, dp(18), 0, 0);
+        panel.addView(s3);
+        TextView s3d = makeText(
+                "1. Buka tab LINK\n" +
+                "2. Endpoint harus: http://127.0.0.1:8787\n" +
+                "3. Tekan CONNECT\n" +
+                "4. Kembali ke CHAT → kirim pesan\n\n" +
+                "Jangan isi 11434 di app (itu Ollama, bukan Bridge).",
+                12, TEXT);
+        s3d.setPadding(0, dp(6), 0, dp(6));
+        s3d.setLineSpacing(dp(2), 1.2f);
+        panel.addView(s3d);
+        panel.addView(setupCopyBtn("SALIN ENDPOINT 8787", setupStep3));
+
+        // ALL notes
+        TextView tip = makeText(
+                "TIPS\n" +
+                "• Kalau repo sudah di-clone: cukup\n" +
+                "  cd ~/CORELINK/bridge && bash start-termux.sh\n" +
+                "• Token GitHub di .env opsional (boleh kosong)\n" +
+                "• Bridge & Ollama harus tetap hidup saat chat\n" +
+                "• Gagal connect? Cek Termux masih jalan + endpoint 8787",
+                11, MUTED);
+        tip.setTypeface(Typeface.MONOSPACE);
+        tip.setPadding(0, dp(18), 0, 0);
+        tip.setLineSpacing(dp(2), 1.2f);
+        panel.addView(tip);
+
+        panel.addView(setupCopyBtn("SALIN SEMUA CATATAN TUTORIAL", setupAllInOne));
 
         scroll.addView(panel);
         LinearLayout wrapper = new LinearLayout(this);
