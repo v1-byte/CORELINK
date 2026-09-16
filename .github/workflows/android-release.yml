@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag (e.g. v1.3.0)'
+        description: 'Version tag (e.g. v1.5.1)'
         required: true
-        default: 'v1.5.0'
+        default: 'v1.5.1'
   push:
     tags:
       - 'v*'
@@ -39,6 +39,7 @@ jobs:
           echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
           echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
           echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
+          echo "$HOME/android-sdk/build-tools/35.0.0" >> $GITHUB_PATH
 
       - name: Accept licenses & install SDK packages
         run: |
@@ -48,23 +49,50 @@ jobs:
       - name: Write local.properties
         run: echo "sdk.dir=$HOME/android-sdk" > android/local.properties
 
+      - name: Create signing keystore
+        working-directory: android/app
+        run: |
+          keytool -genkeypair -v \
+            -keystore corelink-release.jks \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -alias corelink \
+            -storepass corelink123 \
+            -keypass corelink123 \
+            -dname "CN=CORELINK, OU=Mobile, O=v1-byte, L=ID, ST=ID, C=ID"
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
 
-      - name: Build Release APK
+      - name: Build Release APK (signed)
         working-directory: android
         run: gradle assembleRelease --no-daemon --stacktrace
 
-      - name: Locate APK
+      - name: Locate & verify signed APK
         id: apk
         run: |
-          APK=$(find android/app/build/outputs/apk -name "*.apk" | head -1)
+          APK=$(find android/app/build/outputs/apk -name "*release*.apk" | head -1)
           echo "APK found: $APK"
           ls -lh "$APK"
-          cp "$APK" CORELINK-1.5.0.apk
-          echo "path=$APK" >> $GITHUB_OUTPUT
+          # Ensure signed — if still unsigned, sign with apksigner
+          if $HOME/android-sdk/build-tools/35.0.0/apksigner verify "$APK" 2>/dev/null; then
+            echo "Already signed"
+            cp "$APK" CORELINK-signed.apk
+          else
+            echo "Signing with apksigner..."
+            $HOME/android-sdk/build-tools/35.0.0/zipalign -f -p 4 "$APK" CORELINK-aligned.apk
+            $HOME/android-sdk/build-tools/35.0.0/apksigner sign \
+              --ks android/app/corelink-release.jks \
+              --ks-pass pass:corelink123 \
+              --key-pass pass:corelink123 \
+              --out CORELINK-signed.apk \
+              CORELINK-aligned.apk
+            $HOME/android-sdk/build-tools/35.0.0/apksigner verify CORELINK-signed.apk
+          fi
+          cp CORELINK-signed.apk CORELINK-1.5.1.apk
+          ls -lh CORELINK-1.5.1.apk
+          echo "path=CORELINK-1.5.1.apk" >> $GITHUB_OUTPUT
 
       - name: Version
         id: ver
@@ -83,21 +111,22 @@ jobs:
           body: |
             ## CORELINK Android ${{ steps.ver.outputs.tag }}
 
-            ### Fitur
-            - Chat UI profesional (bubble user kanan / AI kiri)
-            - Composer fixed + tombol **+** & panah kecil
-            - Status **Thinking...** animasi titik
-            - Navbar **CHAT · BRIDGE · TOOLS · SETUP**
-            - Keyboard-safe + auto-scroll
+            **APK ini sudah di-sign** — bisa diinstall di Android.
 
             ### Install
-            1. Download APK di bawah
-            2. Izinkan install dari sumber tidak dikenal
-            3. Install & buka aplikasi
-            4. Tab **BRIDGE** → Connect
-          files: |
-            ${{ steps.apk.outputs.path }}
-            CORELINK-1.5.0.apk
+            1. Download **CORELINK-1.5.1.apk**
+            2. Settings → izinkan install dari browser/file manager
+            3. Buka file APK → Install
+            4. Jika sudah terpasang versi lama: uninstall dulu **atau** izinkan update
+
+            ### Fitur
+            - Navbar: CHAT · LINK · TOOLS · SETUP · AI · REMOTE
+            - Chat bubble + animasi
+            - AI settings (system prompt / temperature)
+            - MyBase + A-Connect (UI)
+
+            > Jika install gagal: uninstall APK lama dulu, lalu install ulang.
+          files: CORELINK-1.5.1.apk
           draft: false
           prerelease: false
         env:

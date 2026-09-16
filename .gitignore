@@ -116,3 +116,6 @@ client/public/__manus__/version.json
 .gradle/
 android/.gradle/
 android/**/build/
+
+*.jks
+*.keystore
