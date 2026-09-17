@@ -55,18 +55,20 @@ import java.util.concurrent.Executors;
 public class MainActivity extends Activity {
 
     // Color palette (professional dark)
-    private final int BG       = Color.rgb(7, 10, 18);
-    private final int CARD     = Color.rgb(13, 23, 36);
-    private final int SURFACE  = Color.rgb(10, 18, 30);
-    private final int BORDER   = Color.rgb(29, 69, 93);
-    private final int TEXT     = Color.rgb(225, 239, 250);
-    private final int MUTED    = Color.rgb(126, 153, 173);
-    private final int BLUE     = Color.rgb(0, 158, 221);
-    private final int GREEN    = Color.rgb(72, 218, 150);
-    private final int RED      = Color.rgb(245, 110, 110);
-    private final int AMBER    = Color.rgb(238, 190, 81);
-    private final int USER_BG  = Color.rgb(18, 58, 48);
-    private final int AI_BG    = Color.rgb(16, 32, 50);
+    // Light modern theme (screenshot style)
+    private final int BG       = Color.rgb(244, 248, 252);
+    private final int CARD     = Color.rgb(255, 255, 255);
+    private final int SURFACE  = Color.rgb(255, 255, 255);
+    private final int BORDER   = Color.rgb(210, 225, 238);
+    private final int TEXT     = Color.rgb(28, 40, 55);
+    private final int MUTED    = Color.rgb(110, 130, 150);
+    private final int BLUE     = Color.rgb(0, 168, 232);
+    private final int GREEN    = Color.rgb(16, 185, 129);
+    private final int RED      = Color.rgb(239, 68, 68);
+    private final int AMBER    = Color.rgb(245, 158, 11);
+    private final int USER_BG  = Color.rgb(230, 248, 255);
+    private final int AI_BG    = Color.rgb(255, 255, 255);
+    private final int ACCENT   = Color.rgb(0, 180, 255);
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -90,9 +92,10 @@ public class MainActivity extends Activity {
     private LinearLayout settingsPanel, remotePanel;
     private EditText systemPromptInput;
     private Spinner tempSpinner, modeSpinner;
-    private TextView aConnectTokenView, aConnectStatusView;
+    private TextView aConnectTokenView, aConnectStatusView, processLogView, emptyHint;
     private SharedPreferences prefs;
     private String aConnectToken = "";
+    private android.animation.ObjectAnimator sendGlowAnimator;
 
     // State
     private String bridge = "http://127.0.0.1:8787";
@@ -104,38 +107,38 @@ public class MainActivity extends Activity {
     private Runnable thinkingAnimator;
     private static final int PICK_FILE = 401;
 
-    // Tutorial copy-paste — tanpa nano, langsung jalan
+    // Tutorial simpel
     private final String setupStep1 =
             "pkg update -y\n" +
-            "pkg install -y nodejs git curl\n" +
+            "pkg install -y nodejs git curl ollama\n" +
             "git clone https://github.com/v1-byte/CORELINK.git\n" +
-            "cd CORELINK/bridge\n" +
-            "cp config.template .env\n" +
+            "cd ~/CORELINK/bridge\n" +
+            "cp -n config.template .env\n" +
             "bash start-termux.sh";
 
     private final String setupStep2 =
-            "ollama pull qwen2.5-coder:1.5b\n" +
             "ollama serve";
 
     private final String setupStep3 = "http://127.0.0.1:8787";
 
+    private final String setupDaily =
+            "cd ~/CORELINK/bridge && bash start-termux.sh";
+
     private final String setupAllInOne =
-            "# ===== LANGKAH 1: Bridge (sesi Termux 1) =====\n" +
-            "pkg update -y\n" +
-            "pkg install -y nodejs git curl\n" +
+            "# A. PERTAMA KALI\n" +
+            "pkg update -y && pkg install -y nodejs git curl ollama\n" +
             "git clone https://github.com/v1-byte/CORELINK.git\n" +
-            "cd CORELINK/bridge\n" +
-            "cp config.template .env\n" +
-            "bash start-termux.sh\n" +
+            "cd ~/CORELINK/bridge && cp -n config.template .env && bash start-termux.sh\n" +
             "\n" +
-            "# ===== LANGKAH 2: Ollama (sesi Termux 2 — buka tab baru) =====\n" +
-            "# ollama pull qwen2.5-coder:1.5b\n" +
-            "# ollama serve\n" +
+            "# B. SETIAP HARI — sesi 1\n" +
+            "cd ~/CORELINK/bridge && bash start-termux.sh\n" +
             "\n" +
-            "# ===== LANGKAH 3: Di app CORELINK =====\n" +
-            "# Tab LINK → endpoint: http://127.0.0.1:8787 → CONNECT\n" +
-            "# Lalu tab CHAT → kirim pesan\n" +
-            "# Jangan pakai port 11434 di app (itu port Ollama, bukan Bridge)";
+            "# C. SETIAP HARI — sesi 2 (tab baru)\n" +
+            "ollama serve\n" +
+            "\n" +
+            "# D. APP: LINK → http://127.0.0.1:8787 → CONNECT → CHAT\n" +
+            "# EADDRINUSE 8787 = Bridge sudah OK\n" +
+            "# Model: ollama pull qwen2.5-coder:1.5b";
 
     @Override
     public void onCreate(Bundle state) {
@@ -147,6 +150,10 @@ public class MainActivity extends Activity {
         Window w = getWindow();
         w.setStatusBarColor(BG);
         w.setNavigationBarColor(BG);
+        if (android.os.Build.VERSION.SDK_INT >= 23) {
+            w.getDecorView().setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+        }
         w.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         buildUI();
     }
@@ -189,7 +196,7 @@ public class MainActivity extends Activity {
         for (Button t : tabs) {
             if (t == null) continue;
             boolean on = t == active;
-            t.setBackground(makeBg(on ? BLUE : Color.rgb(18, 36, 54), on ? BLUE : BORDER, 10));
+            t.setBackground(makeBg(on ? BLUE : CARD, on ? BLUE : BORDER, 20));
             t.setTextColor(on ? Color.WHITE : MUTED);
         }
     }
@@ -223,7 +230,7 @@ public class MainActivity extends Activity {
         TextView avatar = makeText(isUser ? "YOU" : "AI", 9, isUser ? GREEN : BLUE);
         avatar.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
         avatar.setGravity(Gravity.CENTER);
-        avatar.setBackground(makeBg(isUser ? Color.rgb(20, 55, 42) : Color.rgb(14, 40, 62), 0, 8));
+        avatar.setBackground(makeBg(isUser ? Color.rgb(200, 240, 255) : Color.rgb(230, 240, 250), 0, 8));
         LinearLayout.LayoutParams avLp = lp(36, 36);
         if (isUser) avLp.leftMargin = dp(8); else avLp.rightMargin = dp(8);
         avatar.setLayoutParams(avLp);
@@ -232,7 +239,7 @@ public class MainActivity extends Activity {
         LinearLayout bubble = new LinearLayout(this);
         bubble.setOrientation(LinearLayout.VERTICAL);
         int bgColor = isUser ? USER_BG : AI_BG;
-        int stroke = isUser ? Color.rgb(40, 110, 80) : Color.rgb(35, 80, 115);
+        int stroke = isUser ? Color.rgb(160, 220, 245) : Color.rgb(210, 225, 238);
         GradientDrawable bubbleBg = new GradientDrawable();
         bubbleBg.setColor(bgColor);
         float r = dp(16);
@@ -462,16 +469,14 @@ public class MainActivity extends Activity {
         titles.addView(sub);
         header.addView(titles, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
 
-        TextView status = makeText("● ONLINE", 9, GREEN);
-        status.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
-        header.addView(status);
+        // ONLINE text removed — status via navbar only
         rootLayout.addView(header);
 
         // Navbar
         LinearLayout navBar = new LinearLayout(this);
         navBar.setOrientation(LinearLayout.HORIZONTAL);
-        navBar.setPadding(dp(10), dp(8), dp(10), dp(8));
-        navBar.setBackgroundColor(SURFACE);
+        navBar.setPadding(dp(8), dp(10), dp(8), dp(10));
+        navBar.setBackgroundColor(BG);
 
         // Compact labels so 6 tabs fit on phone
         tabChat = makeTab("CHAT", true);
@@ -538,7 +543,7 @@ public class MainActivity extends Activity {
         tabRemote.setOnClickListener(v -> { setActiveTab(tabRemote); showPanel(remotePanel); });
 
         setContentView(outer);
-        addMessage("assistant", "Connection established. I'm ready to work across your connected services.\n\nWhat should we build today?");
+        // empty chat — no welcome bubble
     }
 
     private Button makeTab(String label, boolean active) {
@@ -551,7 +556,7 @@ public class MainActivity extends Activity {
         b.setMinHeight(0);
         b.setMinWidth(0);
         b.setPadding(0, 0, 0, 0);
-        b.setBackground(makeBg(active ? BLUE : Color.rgb(18, 36, 54), active ? BLUE : BORDER, 10));
+        b.setBackground(makeBg(active ? BLUE : CARD, active ? BLUE : BORDER, 20));
         b.setTextColor(active ? Color.WHITE : MUTED);
         return b;
     }
@@ -596,11 +601,11 @@ public class MainActivity extends Activity {
         inputRow.setGravity(Gravity.BOTTOM);
 
         FrameLayout inputWrap = new FrameLayout(this);
-        inputWrap.setBackground(makeBg(Color.rgb(12, 22, 36), BORDER, 14));
+        inputWrap.setBackground(makeBg(CARD, BORDER, 24));
 
         promptInput = new EditText(this);
         promptInput.setHint("Message CORELINK…");
-        promptInput.setHintTextColor(Color.rgb(90, 120, 145));
+        promptInput.setHintTextColor(MUTED);
         promptInput.setTextColor(TEXT);
         promptInput.setTextSize(14.5f);
         promptInput.setMinLines(1);
@@ -618,7 +623,7 @@ public class MainActivity extends Activity {
         plusBtn.setTextSize(18);
         plusBtn.setTextColor(MUTED);
         plusBtn.setTypeface(Typeface.DEFAULT_BOLD);
-        plusBtn.setBackground(makeBg(Color.rgb(20, 40, 60), 0, 10));
+        plusBtn.setBackground(makeBg(Color.rgb(235, 244, 252), 0, 12));
         plusBtn.setMinHeight(0);
         plusBtn.setMinWidth(0);
         plusBtn.setPadding(0, 0, 0, 0);
@@ -638,16 +643,19 @@ public class MainActivity extends Activity {
         // Small arrow send
         sendBtn = new Button(this);
         sendBtn.setText("➤");
-        sendBtn.setTextSize(16);
+        sendBtn.setTextSize(20);
+        sendBtn.setTypeface(Typeface.DEFAULT_BOLD);
         sendBtn.setTextColor(Color.WHITE);
-        sendBtn.setBackground(makeBg(BLUE, 0, 12));
+        sendBtn.setBackground(makeBg(ACCENT, 0, 22));
         sendBtn.setMinHeight(0);
         sendBtn.setMinWidth(0);
         sendBtn.setPadding(0, 0, 0, 0);
-        LinearLayout.LayoutParams sendLp = lp(44, 44);
+        sendBtn.setElevation(dp(6));
+        LinearLayout.LayoutParams sendLp = lp(48, 48);
         sendLp.leftMargin = dp(8);
         inputRow.addView(sendBtn, sendLp);
         sendBtn.setOnClickListener(v -> sendMessage());
+        startSendGlow();
 
         composer.addView(inputRow);
         panel.addView(composer);
@@ -752,6 +760,31 @@ public class MainActivity extends Activity {
         heading.setLetterSpacing(0.1f);
         panel.addView(heading);
 
+        TextView logTitle = makeText("PROSES LIVE", 10, MUTED);
+        logTitle.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+        logTitle.setPadding(0, dp(12), 0, dp(6));
+        panel.addView(logTitle);
+
+        processLogView = makeText("› Menunggu aksi…\n› Connect Bridge / refresh connector untuk melihat proses.", 11, TEXT);
+        processLogView.setTypeface(Typeface.MONOSPACE);
+        processLogView.setBackground(makeBg(CARD, BORDER, 12));
+        processLogView.setPadding(dp(12), dp(12), dp(12), dp(12));
+        processLogView.setLineSpacing(dp(3), 1.15f);
+        panel.addView(processLogView);
+
+        Button refreshConn = new Button(this);
+        refreshConn.setText("REFRESH CONNECTORS");
+        refreshConn.setTextSize(11);
+        refreshConn.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+        refreshConn.setAllCaps(false);
+        refreshConn.setTextColor(Color.WHITE);
+        refreshConn.setBackground(makeBg(BLUE, 0, 10));
+        LinearLayout.LayoutParams rlp = lp(-1, 44);
+        rlp.topMargin = dp(10);
+        rlp.bottomMargin = dp(8);
+        panel.addView(refreshConn, rlp);
+        refreshConn.setOnClickListener(v -> refreshConnectors());
+
         TextView desc = makeText("Tools are configured via Bridge .env on Termux. Tokens stay on device.", 12, MUTED);
         desc.setPadding(0, dp(6), 0, dp(14));
         panel.addView(desc);
@@ -840,22 +873,22 @@ public class MainActivity extends Activity {
         panel.setPadding(dp(16), dp(16), dp(16), dp(28));
         panel.setBackgroundColor(BG);
 
-        TextView heading = makeText("TUTORIAL LENGKAP", 12, BLUE);
+        TextView heading = makeText("SETUP CEPAT", 13, BLUE);
         heading.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
         heading.setLetterSpacing(0.08f);
         panel.addView(heading);
 
         TextView desc = makeText(
-                "Ikuti 3 langkah. Tiap tombol = copy → tempel di Termux. Tidak perlu nano.",
+                "Tinggal SALIN → tempel Termux → Enter. 3 langkah.",
                 12, MUTED);
         desc.setPadding(0, dp(6), 0, dp(12));
         panel.addView(desc);
 
         // STEP 1
-        TextView s1 = makeText("LANGKAH 1 — Bridge (Termux sesi 1)", 11, GREEN);
+        TextView s1 = makeText("A. PERTAMA KALI (sekali saja)", 11, GREEN);
         s1.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
         panel.addView(s1);
-        TextView s1d = makeText("Install + clone + jalankan Bridge. Biarkan sesi ini tetap terbuka.", 11, MUTED);
+        TextView s1d = makeText("Install semua + Bridge. Sudah clone? Pakai tombol B saja.", 11, MUTED);
         s1d.setPadding(0, dp(4), 0, dp(6));
         panel.addView(s1d);
 
@@ -865,14 +898,23 @@ public class MainActivity extends Activity {
         box1.setBackground(makeBg(CARD, BORDER, 12));
         box1.setPadding(dp(12), dp(12), dp(12), dp(12));
         panel.addView(box1);
-        panel.addView(setupCopyBtn("SALIN LANGKAH 1 (Bridge)", setupStep1));
+        panel.addView(setupCopyBtn("SALIN — PERTAMA KALI", setupStep1));
+
+        TextView s1b = makeText("B. SETIAP HARI — Bridge saja", 11, GREEN);
+        s1b.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+        s1b.setPadding(0, dp(16), 0, 0);
+        panel.addView(s1b);
+        TextView s1bd = makeText("EADDRINUSE 8787 = sudah jalan (OK).", 11, MUTED);
+        s1bd.setPadding(0, dp(4), 0, dp(6));
+        panel.addView(s1bd);
+        panel.addView(setupCopyBtn("SALIN — BRIDGE HARIAN", setupDaily));
 
         // STEP 2
-        TextView s2 = makeText("LANGKAH 2 — Ollama (Termux sesi 2)", 11, GREEN);
+        TextView s2 = makeText("C. OLLAMA (tab Termux baru)", 11, GREEN);
         s2.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
         s2.setPadding(0, dp(18), 0, 0);
         panel.addView(s2);
-        TextView s2d = makeText("Buka tab/sesi Termux BARU. Jangan tutup sesi Bridge.", 11, MUTED);
+        TextView s2d = makeText("Jangan tutup Bridge. Model: ollama pull qwen2.5-coder:1.5b", 11, MUTED);
         s2d.setPadding(0, dp(4), 0, dp(6));
         panel.addView(s2d);
 
@@ -882,10 +924,10 @@ public class MainActivity extends Activity {
         box2.setBackground(makeBg(CARD, BORDER, 12));
         box2.setPadding(dp(12), dp(12), dp(12), dp(12));
         panel.addView(box2);
-        panel.addView(setupCopyBtn("SALIN LANGKAH 2 (Ollama)", setupStep2));
+        panel.addView(setupCopyBtn("SALIN — OLLAMA", setupStep2));
 
         // STEP 3
-        TextView s3 = makeText("LANGKAH 3 — Hubungkan di app ini", 11, GREEN);
+        TextView s3 = makeText("D. DI APP", 11, GREEN);
         s3.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
         s3.setPadding(0, dp(18), 0, 0);
         panel.addView(s3);
@@ -899,7 +941,7 @@ public class MainActivity extends Activity {
         s3d.setPadding(0, dp(6), 0, dp(6));
         s3d.setLineSpacing(dp(2), 1.2f);
         panel.addView(s3d);
-        panel.addView(setupCopyBtn("SALIN ENDPOINT 8787", setupStep3));
+        panel.addView(setupCopyBtn("SALIN ENDPOINT", setupStep3));
 
         // ALL notes
         TextView tip = makeText(
@@ -915,7 +957,7 @@ public class MainActivity extends Activity {
         tip.setLineSpacing(dp(2), 1.2f);
         panel.addView(tip);
 
-        panel.addView(setupCopyBtn("SALIN SEMUA CATATAN TUTORIAL", setupAllInOne));
+        panel.addView(setupCopyBtn("SALIN SEMUA CATATAN", setupAllInOne));
 
         scroll.addView(panel);
         LinearLayout wrapper = new LinearLayout(this);
@@ -1314,14 +1356,80 @@ public class MainActivity extends Activity {
 
     // ─── Network ─────────────────────────────────────────────────────────────
 
+
+    private void startSendGlow() {
+        if (sendBtn == null) return;
+        if (sendGlowAnimator != null) sendGlowAnimator.cancel();
+        sendGlowAnimator = android.animation.ObjectAnimator.ofFloat(sendBtn, "alpha", 1f, 0.75f, 1f);
+        sendGlowAnimator.setDuration(1300);
+        sendGlowAnimator.setRepeatCount(android.animation.ValueAnimator.INFINITE);
+        sendGlowAnimator.start();
+        pulseSendLoop();
+    }
+
+    private void pulseSendLoop() {
+        if (sendBtn == null || !sendBtn.isAttachedToWindow()) return;
+        sendBtn.animate().scaleX(1.1f).scaleY(1.1f).setDuration(600)
+                .withEndAction(() -> {
+                    if (sendBtn == null) return;
+                    sendBtn.animate().scaleX(1f).scaleY(1f).setDuration(600)
+                            .withEndAction(this::pulseSendLoop).start();
+                }).start();
+    }
+
+    private void appendProcess(String line) {
+        runOnUiThread(() -> {
+            if (processLogView == null) return;
+            String prev = processLogView.getText() == null ? "" : processLogView.getText().toString();
+            String next = (prev.isEmpty() ? "" : prev + "\n") + "› " + line;
+            String[] lines = next.split("\n");
+            if (lines.length > 28) {
+                StringBuilder sb = new StringBuilder();
+                for (int i = lines.length - 28; i < lines.length; i++) {
+                    if (sb.length() > 0) sb.append('\n');
+                    sb.append(lines[i]);
+                }
+                next = sb.toString();
+            }
+            processLogView.setText(next);
+            processLogView.setVisibility(View.VISIBLE);
+        });
+    }
+
+
+    private void refreshConnectors() {
+        appendProcess("Refresh connectors…");
+        appendProcess("GET /api/connectors");
+        executor.execute(() -> {
+            try {
+                String json = request(bridge + "/api/connectors", null);
+                appendProcess("Respons diterima (" + json.length() + " chars)");
+                // parse simple online flags
+                String lower = json.toLowerCase();
+                if (lower.contains("ollama")) appendProcess("Ollama: " + (lower.contains("\"online\":true") ? "cek detail JSON" : "lihat status"));
+                if (lower.contains("github")) appendProcess("GitHub token: " + (lower.contains("\"configured\":true") ? "terkonfigurasi / cek" : "belum"));
+                if (lower.contains("cloudflared")) appendProcess("Cloudflared: dicek");
+                if (lower.contains("docker")) appendProcess("Docker: dicek");
+                appendProcess("Selesai refresh");
+                runOnUiThread(() -> Toast.makeText(this, "Connector di-refresh", Toast.LENGTH_SHORT).show());
+            } catch (Exception e) {
+                appendProcess("Error: " + e.getMessage());
+            }
+        });
+    }
+
     private void connectBridge() {
         bridge = endpointInput.getText().toString().trim().replaceAll("/$", ""); prefs.edit().putString("bridge", bridge).apply();
         bridgeStatus.setText("  Connecting…");
         bridgeStatus.setTextColor(AMBER);
+        appendProcess("Mulai koneksi Bridge → " + bridge);
+        appendProcess("Cek /health …");
 
         executor.execute(() -> {
             try {
                 request(bridge + "/health", null);
+                appendProcess("Health OK");
+                appendProcess("Ambil model Ollama (/api/ollama/tags) …");
                 String tags = request(bridge + "/api/ollama/tags", null);
                 ArrayList<String> names = new ArrayList<>();
                 Matcher m = Pattern.compile("\\\"name\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"").matcher(tags);
@@ -1337,12 +1445,15 @@ public class MainActivity extends Activity {
                     setActiveTab(tabChat);
                     showPanel(chatPanel);
                     Toast.makeText(this, "Bridge connected · " + names.size() + " model(s)", Toast.LENGTH_SHORT).show();
+                    appendProcess("Terhubung · " + names.size() + " model: " + names);
+                    appendProcess("Siap chat");
                 });
             } catch (Exception e) {
                 runOnUiThread(() -> {
                     bridgeStatus.setText("  Connection failed");
                     bridgeStatus.setTextColor(RED);
                     Toast.makeText(this, "Bridge gagal. Jalankan start-termux.sh di Termux.", Toast.LENGTH_LONG).show();
+                    appendProcess("GAGAL: " + (e.getMessage() == null ? "error" : e.getMessage()));
                 });
             }
         });
@@ -1365,6 +1476,7 @@ public class MainActivity extends Activity {
         addMessage("user", q);
         promptInput.setText("");
         // slight delay so user bubble animation plays before thinking appears
+        appendProcess("Kirim pesan ke agent…");
         mainHandler.postDelayed(this::showThinking, 160);
 
         String selected = modelSpinner.getSelectedItem() == null
