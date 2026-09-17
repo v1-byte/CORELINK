@@ -4,18 +4,29 @@ Aplikasi + Bridge untuk menghubungkan **chat AI lokal (Ollama)** dengan connecto
 
 ## Cepat mulai
 
-1. **Termux — Bridge**
+1. Install **Termux** biasa, sebaiknya dari F-Droid.
+2. Di Termux, clone repository dan pasang bridge:
+
    ```bash
-   # lihat CORELINK_BRIDGE.md dan OLLAMA_TERMUX.md
+   git clone https://github.com/v1-byte/CORELINK.git
    cd CORELINK/bridge
-   bash start-termux.sh
+   bash install-termux.sh
    ```
-2. **Ollama**
-   ```bash
-   ollama serve
-   ```
-3. **APK Android** — unduh rilis: [Releases](https://github.com/v1-byte/CORELINK/releases)  
-   Tab **LINK** (Bridge) → Connect ke `http://127.0.0.1:8787`
+
+3. Edit `~/corelink-bridge/.env` jika ingin memakai connector cloud.
+4. Tutup lalu buka kembali Termux.
+5. APK CORELINK → tab **LINK** → Connect ke `http://127.0.0.1:8787`.
+
+Installer menambahkan auto-start ke `~/.bashrc`, sehingga bridge berjalan otomatis ketika Termux biasa dibuka. Ini bukan auto-start saat Android boot; untuk itu memang diperlukan Termux:Boot.
+
+## Ollama
+
+```bash
+ollama serve
+ollama pull qwen2.5-coder:1.5b
+```
+
+Lihat [CORELINK_BRIDGE.md](./CORELINK_BRIDGE.md) dan [OLLAMA_TERMUX.md](./OLLAMA_TERMUX.md) untuk konfigurasi lengkap.
 
 ## Navbar Android
 
