@@ -95,6 +95,10 @@ public class MainActivity extends Activity {
     private TextView aConnectTokenView, aConnectStatusView, processLogView, emptyHint;
     private SharedPreferences prefs;
     private String aConnectToken = "";
+    private String remoteRole = ""; // user | admin
+    private Runnable remotePollRunnable;
+    private EditText remoteChatInput;
+    private TextView remoteChatLog;
     private android.animation.ObjectAnimator sendGlowAnimator;
 
     // State
@@ -1108,7 +1112,41 @@ public class MainActivity extends Activity {
         tokRow.addView(genTok, rowBtnLp());
         tokRow.addView(copyTok, rowBtnLp());
         tokRow.addView(stopSes, rowBtnLp());
+
         aConn.addView(tokRow);
+
+        Button acceptBtn = smallBtn("USER: IZINKAN SESI", GREEN);
+        LinearLayout.LayoutParams accLp = lp(-1, 44);
+        accLp.topMargin = dp(8);
+        aConn.addView(acceptBtn, accLp);
+        acceptBtn.setOnClickListener(v -> remoteAcceptSession());
+
+        Button shareDev = smallBtn("USER: BAGIKAN INFO HP", Color.rgb(22, 64, 88));
+        aConn.addView(shareDev, accLp);
+        shareDev.setOnClickListener(v -> remoteShareDevice());
+
+        remoteChatLog = makeText("Chat support muncul saat sesi AKTIF.", 11, MUTED);
+        remoteChatLog.setTypeface(Typeface.MONOSPACE);
+        remoteChatLog.setBackground(makeBg(CARD, BORDER, 10));
+        remoteChatLog.setPadding(dp(10), dp(10), dp(10), dp(10));
+        remoteChatLog.setMinHeight(dp(80));
+        LinearLayout.LayoutParams clp = lp(-1, -2);
+        clp.topMargin = dp(10);
+        aConn.addView(remoteChatLog, clp);
+
+        remoteChatInput = new EditText(this);
+        remoteChatInput.setHint("Pesan support (sesi aktif)");
+        remoteChatInput.setHintTextColor(MUTED);
+        remoteChatInput.setTextColor(TEXT);
+        remoteChatInput.setTextSize(13);
+        remoteChatInput.setBackground(makeBg(CARD, BORDER, 10));
+        remoteChatInput.setPadding(dp(10), dp(10), dp(10), dp(10));
+        aConn.addView(remoteChatInput, clp);
+
+        Button sendRemote = smallBtn("KIRIM PESAN SUPPORT", BLUE);
+        aConn.addView(sendRemote, accLp);
+        sendRemote.setOnClickListener(v -> remoteSendMessage());
+
 
         EditText adminTokenIn = new EditText(this);
         adminTokenIn.setHint("Admin: tempel token user di sini");
@@ -1130,29 +1168,19 @@ public class MainActivity extends Activity {
         aConn.addView(adminConnect, acLp);
 
         asUser.setOnClickListener(v -> {
-            aConnectStatusView.setText("Mode: USER · menunggu izin 2 pihak");
+            remoteRole = "user"; aConnectStatusView.setText("Mode: USER · menunggu izin 2 pihak");
             aConnectStatusView.setTextColor(GREEN);
             adminTokenIn.setVisibility(View.GONE);
             adminConnect.setVisibility(View.GONE);
             genTok.setVisibility(View.VISIBLE);
         });
         asAdmin.setOnClickListener(v -> {
-            aConnectStatusView.setText("Mode: ADMIN CoreLink Desk · butuh token + izin user");
+            remoteRole = "admin"; aConnectStatusView.setText("Mode: ADMIN CoreLink Desk · butuh token + izin user");
             aConnectStatusView.setTextColor(AMBER);
             adminTokenIn.setVisibility(View.VISIBLE);
             adminConnect.setVisibility(View.VISIBLE);
         });
-        genTok.setOnClickListener(v -> {
-            // Local token only — no network control yet
-            String tok = "AC-" + Long.toString(System.currentTimeMillis(), 36).toUpperCase()
-                    + "-" + Integer.toHexString((int) (Math.random() * 0xFFFFF)).toUpperCase();
-            aConnectToken = tok;
-            prefs.edit().putString("aconnect_token", tok).apply();
-            aConnectTokenView.setText("Token: " + tok);
-            aConnectStatusView.setText("USER · token siap · admin harus dikonfirmasi user");
-            aConnectStatusView.setTextColor(GREEN);
-            Toast.makeText(this, "Token dibuat. Kirim ke Admin Desk. Sesi hanya setelah user setuju.", Toast.LENGTH_LONG).show();
-        });
+        genTok.setOnClickListener(v -> remoteCreateToken());
         copyTok.setOnClickListener(v -> {
             if (aConnectToken == null || aConnectToken.isEmpty()) {
                 aConnectToken = prefs.getString("aconnect_token", "");
@@ -1165,24 +1193,8 @@ public class MainActivity extends Activity {
             cm.setPrimaryClip(ClipData.newPlainText("A-Connect token", aConnectToken));
             Toast.makeText(this, "Token disalin.", Toast.LENGTH_SHORT).show();
         });
-        stopSes.setOnClickListener(v -> {
-            aConnectToken = "";
-            prefs.edit().remove("aconnect_token").apply();
-            aConnectTokenView.setText("Token: —");
-            aConnectStatusView.setText("Sesi dihentikan / tidak aktif");
-            aConnectStatusView.setTextColor(MUTED);
-            Toast.makeText(this, "Sesi A-Connect dihentikan (lokal).", Toast.LENGTH_SHORT).show();
-        });
-        adminConnect.setOnClickListener(v -> {
-            String t = adminTokenIn.getText().toString().trim();
-            if (t.isEmpty()) {
-                Toast.makeText(this, "Tempel token dari user dulu.", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            aConnectStatusView.setText("ADMIN · token dicatat · tunggu konfirmasi user (engine menyusul)");
-            aConnectStatusView.setTextColor(AMBER);
-            Toast.makeText(this, "Token OK. Sesi penuh butuh konfirmasi 2 pihak (engine menyusul).", Toast.LENGTH_LONG).show();
-        });
+        stopSes.setOnClickListener(v -> remoteStopSession());
+        adminConnect.setOnClickListener(v -> remoteAdminRequest(adminTokenIn.getText().toString().trim()));
 
         // restore token if any
         aConnectToken = prefs.getString("aconnect_token", "");
@@ -1449,6 +1461,271 @@ public class MainActivity extends Activity {
     }
 
 
+
+    // ─── Remote support API (Bridge, two-party) ─────────────────────────────
+
+    private void remoteCreateToken() {
+        remoteRole = "user";
+        appendProcess("Remote: create token…");
+        executor.execute(() -> {
+            try {
+                String body = "{\"note\":\"user support token\",\"device\":{\"model\":\"" +
+                        android.os.Build.MODEL.replace("\"", "") + "\",\"android\":\"" +
+                        android.os.Build.VERSION.RELEASE + "\"}}";
+                String res = request(bridge + "/api/remote/create", body);
+                String tok = extractJsonString(res, "token");
+                if (tok.isEmpty()) tok = extractNestedToken(res);
+                final String token = tok;
+                runOnUiThread(() -> {
+                    if (token.isEmpty()) {
+                        Toast.makeText(this, "Gagal buat token. Bridge jalan?", Toast.LENGTH_LONG).show();
+                        appendProcess("Remote create gagal: " + res);
+                        return;
+                    }
+                    aConnectToken = token;
+                    prefs.edit().putString("aconnect_token", token).apply();
+                    aConnectTokenView.setText("Token: " + token);
+                    aConnectStatusView.setText("USER · token siap · kirim ke admin");
+                    aConnectStatusView.setTextColor(GREEN);
+                    appendProcess("Token: " + token);
+                    Toast.makeText(this, "Token dibuat via Bridge. Kirim ke admin.", Toast.LENGTH_LONG).show();
+                    startRemotePoll();
+                });
+            } catch (Exception e) {
+                runOnUiThread(() -> {
+                    Toast.makeText(this, "Bridge error: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                    appendProcess("Remote error: " + e.getMessage());
+                });
+            }
+        });
+    }
+
+    private void remoteAdminRequest(String tokenIn) {
+        remoteRole = "admin";
+        if (tokenIn == null || tokenIn.trim().isEmpty()) {
+            Toast.makeText(this, "Tempel token user dulu.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        final String token = tokenIn.trim().toUpperCase();
+        aConnectToken = token;
+        appendProcess("Admin request sesi: " + token);
+        executor.execute(() -> {
+            try {
+                String body = "{\"token\":\"" + token.replace("\"", "") + "\",\"note\":\"support perbaikan\"}";
+                String res = request(bridge + "/api/remote/request", body);
+                runOnUiThread(() -> {
+                    aConnectTokenView.setText("Token: " + token);
+                    aConnectStatusView.setText("ADMIN · menunggu USER izinkan sesi");
+                    aConnectStatusView.setTextColor(AMBER);
+                    appendProcess("Request terkirim");
+                    Toast.makeText(this, "Menunggu user menekan IZINKAN SESI", Toast.LENGTH_LONG).show();
+                    startRemotePoll();
+                    applyRemoteSessionJson(res);
+                });
+            } catch (Exception e) {
+                runOnUiThread(() -> Toast.makeText(this, "Gagal: " + e.getMessage(), Toast.LENGTH_LONG).show());
+            }
+        });
+    }
+
+    private void remoteAcceptSession() {
+        if (aConnectToken == null || aConnectToken.isEmpty()) {
+            aConnectToken = prefs.getString("aconnect_token", "");
+        }
+        if (aConnectToken.isEmpty()) {
+            Toast.makeText(this, "Belum ada token.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Izinkan support remote?")
+                .setMessage("Admin meminta sesi support.\n\nHanya lanjut jika kamu percaya admin ini.\nKamu bisa STOP kapan saja.")
+                .setPositiveButton("YA, IZINKAN", (d, w) -> {
+                    appendProcess("User mengizinkan sesi");
+                    executor.execute(() -> {
+                        try {
+                            String body = "{\"token\":\"" + aConnectToken.replace("\"", "") +
+                                    "\",\"device\":{\"model\":\"" + android.os.Build.MODEL.replace("\"", "") +
+                                    "\",\"android\":\"" + android.os.Build.VERSION.RELEASE + "\"}}";
+                            String res = request(bridge + "/api/remote/accept", body);
+                            runOnUiThread(() -> {
+                                applyRemoteSessionJson(res);
+                                Toast.makeText(this, "Sesi AKTIF", Toast.LENGTH_SHORT).show();
+                                startRemotePoll();
+                            });
+                        } catch (Exception e) {
+                            runOnUiThread(() -> Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show());
+                        }
+                    });
+                })
+                .setNegativeButton("TIDAK", null)
+                .show();
+    }
+
+    private void remoteStopSession() {
+        if (aConnectToken == null || aConnectToken.isEmpty()) {
+            aConnectToken = prefs.getString("aconnect_token", "");
+        }
+        stopRemotePoll();
+        if (aConnectToken.isEmpty()) {
+            aConnectTokenView.setText("Token: —");
+            aConnectStatusView.setText("Tidak ada sesi");
+            return;
+        }
+        final String tok = aConnectToken;
+        final String by = "admin".equals(remoteRole) ? "admin" : "user";
+        executor.execute(() -> {
+            try {
+                request(bridge + "/api/remote/stop",
+                        "{\"token\":\"" + tok.replace("\"", "") + "\",\"by\":\"" + by + "\"}");
+            } catch (Exception ignored) {}
+            runOnUiThread(() -> {
+                aConnectToken = "";
+                prefs.edit().remove("aconnect_token").apply();
+                aConnectTokenView.setText("Token: —");
+                aConnectStatusView.setText("Sesi dihentikan");
+                aConnectStatusView.setTextColor(MUTED);
+                if (remoteChatLog != null) remoteChatLog.setText("Sesi berhenti.");
+                appendProcess("Sesi stop oleh " + by);
+                Toast.makeText(this, "Sesi dihentikan", Toast.LENGTH_SHORT).show();
+            });
+        });
+    }
+
+    private void remoteShareDevice() {
+        if (aConnectToken == null || aConnectToken.isEmpty()) {
+            Toast.makeText(this, "Sesi/token belum ada.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        executor.execute(() -> {
+            try {
+                String body = "{\"token\":\"" + aConnectToken.replace("\"", "") +
+                        "\",\"model\":\"" + android.os.Build.MODEL.replace("\"", "") +
+                        "\",\"android\":\"" + android.os.Build.VERSION.RELEASE +
+                        "\",\"app\":\"CORELINK\"}";
+                String res = request(bridge + "/api/remote/device", body);
+                runOnUiThread(() -> {
+                    applyRemoteSessionJson(res);
+                    Toast.makeText(this, "Info HP dibagikan ke sesi", Toast.LENGTH_SHORT).show();
+                });
+            } catch (Exception e) {
+                runOnUiThread(() -> Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show());
+            }
+        });
+    }
+
+    private void remoteSendMessage() {
+        if (remoteChatInput == null) return;
+        String msg = remoteChatInput.getText().toString().trim();
+        if (msg.isEmpty() || aConnectToken == null || aConnectToken.isEmpty()) {
+            Toast.makeText(this, "Sesi aktif + isi pesan dulu.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        final String from = "admin".equals(remoteRole) ? "admin" : "user";
+        executor.execute(() -> {
+            try {
+                String body = "{\"token\":\"" + aConnectToken.replace("\"", "") +
+                        "\",\"from\":\"" + from + "\",\"text\":\"" +
+                        msg.replace("\\", "\\\\").replace("\"", "\\\"") + "\"}";
+                String res = request(bridge + "/api/remote/message", body);
+                runOnUiThread(() -> {
+                    remoteChatInput.setText("");
+                    applyRemoteSessionJson(res);
+                });
+            } catch (Exception e) {
+                runOnUiThread(() -> Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show());
+            }
+        });
+    }
+
+    private void startRemotePoll() {
+        stopRemotePoll();
+        remotePollRunnable = new Runnable() {
+            @Override public void run() {
+                if (aConnectToken == null || aConnectToken.isEmpty()) return;
+                executor.execute(() -> {
+                    try {
+                        String res = request(bridge + "/api/remote/status/" +
+                                java.net.URLEncoder.encode(aConnectToken, "UTF-8"), null);
+                        runOnUiThread(() -> applyRemoteSessionJson(res));
+                    } catch (Exception ignored) {}
+                });
+                mainHandler.postDelayed(this, 3000);
+            }
+        };
+        mainHandler.postDelayed(remotePollRunnable, 1500);
+    }
+
+    private void stopRemotePoll() {
+        if (remotePollRunnable != null) {
+            mainHandler.removeCallbacks(remotePollRunnable);
+            remotePollRunnable = null;
+        }
+    }
+
+    private void applyRemoteSessionJson(String res) {
+        if (res == null) return;
+        String status = extractJsonString(res, "status");
+        if (status.isEmpty()) {
+            // try nested session.status
+            int i = res.indexOf("\"status\"");
+            if (i >= 0) {
+                int q1 = res.indexOf('"', i + 8);
+                int q2 = res.indexOf('"', q1 + 1);
+                if (q1 >= 0 && q2 > q1) status = res.substring(q1 + 1, q2);
+            }
+        }
+        if (!status.isEmpty() && aConnectStatusView != null) {
+            aConnectStatusView.setText("Sesi: " + status);
+            if ("active".equals(status)) aConnectStatusView.setTextColor(GREEN);
+            else if ("stopped".equals(status)) aConnectStatusView.setTextColor(MUTED);
+            else aConnectStatusView.setTextColor(AMBER);
+        }
+        // render messages simply
+        if (remoteChatLog != null && res.contains("\"messages\"")) {
+            StringBuilder sb = new StringBuilder();
+            java.util.regex.Matcher m = java.util.regex.Pattern
+                    .compile("\"from\"\\s*:\\s*\"([^\"]+)\".*?\"text\"\\s*:\\s*\"((?:\\\\.|[^\"\\\\])*)\"")
+                    .matcher(res);
+            while (m.find()) {
+                sb.append(m.group(1)).append(": ").append(m.group(2).replace("\\\"", "\"")).append("\n");
+            }
+            if (sb.length() > 0) remoteChatLog.setText(sb.toString().trim());
+        }
+        // user side: if pending_user_confirm, optional toast once
+        if ("pending_user_confirm".equals(status) && "user".equals(remoteRole)) {
+            appendProcess("Admin meminta sesi — tekan IZINKAN SESI");
+        }
+    }
+
+    private String extractJsonString(String json, String key) {
+        if (json == null) return "";
+        String pat = "\"" + key + "\"";
+        int i = json.indexOf(pat);
+        if (i < 0) return "";
+        int colon = json.indexOf(':', i + pat.length());
+        if (colon < 0) return "";
+        int q1 = json.indexOf('"', colon + 1);
+        if (q1 < 0) return "";
+        int q2 = q1 + 1;
+        while (q2 < json.length()) {
+            char c = json.charAt(q2);
+            if (c == '"' && json.charAt(q2 - 1) != '\\') break;
+            q2++;
+        }
+        if (q2 >= json.length()) return "";
+        return json.substring(q1 + 1, q2);
+    }
+
+    private String extractNestedToken(String res) {
+        // "session":{"token":"AC-..."
+        int i = res.indexOf("\"token\"");
+        if (i < 0) return "";
+        int q1 = res.indexOf('"', i + 7);
+        int q2 = res.indexOf('"', q1 + 1);
+        if (q1 < 0 || q2 < 0) return "";
+        return res.substring(q1 + 1, q2);
+    }
+
     private void refreshConnectors() {
         appendProcess("Refresh connectors…");
         appendProcess("GET /api/connectors");
@@ -1642,6 +1919,7 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        stopRemotePoll();
         isThinking = false;
         if (thinkingAnimator != null) mainHandler.removeCallbacks(thinkingAnimator);
         executor.shutdownNow();

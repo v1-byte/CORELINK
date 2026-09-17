@@ -98,13 +98,144 @@ async function agentRun(body) {
   return { ok: result.ok !== false, tool, duration_ms: Date.now() - started, result };
 }
 
+
+// ─── Remote support sessions (two-party consent) ───────────────────────────
+const remoteSessions = new Map(); // token -> session
+
+function makeToken() {
+  return "AC-" + Date.now().toString(36).toUpperCase() + "-" + Math.random().toString(36).slice(2, 8).toUpperCase();
+}
+
+function getSession(token) {
+  return remoteSessions.get(String(token || "").trim().toUpperCase()) || null;
+}
+
+function publicSession(s) {
+  if (!s) return null;
+  return {
+    token: s.token,
+    status: s.status, // waiting_user | pending_admin | pending_user_confirm | active | stopped
+    role_created_by: s.createdBy,
+    created_at: s.createdAt,
+    accepted_at: s.acceptedAt || null,
+    stopped_at: s.stoppedAt || null,
+    device: s.device || null,
+    messages: s.messages.slice(-50),
+    note: s.note || ""
+  };
+}
+
+function remoteCreate(body) {
+  const token = makeToken();
+  const session = {
+    token,
+    status: "waiting_admin", // user created token, waiting admin to request
+    createdBy: "user",
+    createdAt: Date.now(),
+    acceptedAt: null,
+    stoppedAt: null,
+    device: body.device || null,
+    note: String(body.note || "").slice(0, 200),
+    messages: [{ at: Date.now(), from: "system", text: "Token dibuat. Bagikan ke admin. Sesi aktif setelah admin minta + user setuju." }]
+  };
+  remoteSessions.set(token, session);
+  return { ok: true, session: publicSession(session) };
+}
+
+function remoteRequest(body) {
+  const token = String(body.token || "").trim().toUpperCase();
+  const s = getSession(token);
+  if (!s) return { ok: false, error: "Token tidak ditemukan. User harus generate token dulu (Bridge yang sama)." };
+  if (s.status === "stopped") return { ok: false, error: "Sesi sudah di-stop. Minta user buat token baru." };
+  if (s.status === "active") return { ok: true, session: publicSession(s), message: "Sesi sudah aktif." };
+  s.status = "pending_user_confirm";
+  s.note = String(body.note || s.note || "Permintaan support admin").slice(0, 200);
+  s.messages.push({ at: Date.now(), from: "admin", text: "Admin meminta sesi support. Menunggu konfirmasi USER." });
+  return { ok: true, session: publicSession(s), message: "Menunggu USER menekan Izinkan." };
+}
+
+function remoteAccept(body) {
+  const token = String(body.token || "").trim().toUpperCase();
+  const s = getSession(token);
+  if (!s) return { ok: false, error: "Token tidak ditemukan." };
+  if (s.status === "stopped") return { ok: false, error: "Sesi sudah berhenti." };
+  if (s.status !== "pending_user_confirm" && s.status !== "waiting_admin") {
+    // allow accept only when admin requested
+  }
+  if (s.status === "waiting_admin") {
+    return { ok: false, error: "Admin belum meminta sesi. Minta admin tempel token dulu." };
+  }
+  s.status = "active";
+  s.acceptedAt = Date.now();
+  if (body.device) s.device = body.device;
+  s.messages.push({ at: Date.now(), from: "user", text: "USER menyetujui sesi support (izin 2 pihak)." });
+  s.messages.push({ at: Date.now(), from: "system", text: "Sesi AKTIF. Chat support tersedia. STOP kapan saja." });
+  return { ok: true, session: publicSession(s) };
+}
+
+function remoteStop(body) {
+  const token = String(body.token || "").trim().toUpperCase();
+  const s = getSession(token);
+  if (!s) return { ok: false, error: "Token tidak ditemukan." };
+  s.status = "stopped";
+  s.stoppedAt = Date.now();
+  const by = body.by === "admin" ? "admin" : "user";
+  s.messages.push({ at: Date.now(), from: "system", text: "Sesi dihentikan oleh " + by + "." });
+  return { ok: true, session: publicSession(s) };
+}
+
+function remoteStatus(token) {
+  const s = getSession(token);
+  if (!s) return { ok: false, error: "Token tidak ditemukan." };
+  return { ok: true, session: publicSession(s) };
+}
+
+function remoteMessage(body) {
+  const token = String(body.token || "").trim().toUpperCase();
+  const s = getSession(token);
+  if (!s) return { ok: false, error: "Token tidak ditemukan." };
+  if (s.status !== "active") return { ok: false, error: "Sesi belum aktif. Butuh izin 2 pihak." };
+  const from = body.from === "admin" ? "admin" : "user";
+  const text = String(body.text || "").trim().slice(0, 2000);
+  if (!text) return { ok: false, error: "Pesan kosong." };
+  s.messages.push({ at: Date.now(), from, text });
+  return { ok: true, session: publicSession(s) };
+}
+
+function remoteDevice(body) {
+  const token = String(body.token || "").trim().toUpperCase();
+  const s = getSession(token);
+  if (!s) return { ok: false, error: "Token tidak ditemukan." };
+  if (s.status !== "active") return { ok: false, error: "Sesi belum aktif." };
+  s.device = {
+    model: String(body.model || "").slice(0, 80),
+    android: String(body.android || "").slice(0, 40),
+    app: String(body.app || "CORELINK").slice(0, 40),
+    shared_at: Date.now()
+  };
+  s.messages.push({ at: Date.now(), from: "user", text: "Info perangkat dibagikan: " + (s.device.model || "?") + " / Android " + (s.device.android || "?") });
+  return { ok: true, session: publicSession(s) };
+}
+
+
 const server = http.createServer(async (req, res) => {
   if (req.method === "OPTIONS") return json(res, 204, {});
   const url = new URL(req.url, `http://${req.headers.host}`);
   try {
-    if (req.method === "GET" && url.pathname === "/health") return json(res, 200, { name: "CORELINK Bridge", version: "1.1.0-agent", online: true, port: PORT, tools: tools.map(({ name, description }) => ({ name, description })) });
+    if (req.method === "GET" && url.pathname === "/health") return json(res, 200, { name: "CORELINK Bridge", version: "1.2.0-remote", online: true, port: PORT, tools: tools.map(({ name, description }) => ({ name, description })) });
     if (req.method === "GET" && url.pathname === "/api/tools") return json(res, 200, { tools });
     if (req.method === "POST" && url.pathname === "/api/agent") return json(res, 200, await agentRun(await readBody(req)));
+    if (req.method === "POST" && url.pathname === "/api/remote/create") return json(res, 200, remoteCreate(await readBody(req)));
+    if (req.method === "POST" && url.pathname === "/api/remote/request") return json(res, 200, remoteRequest(await readBody(req)));
+    if (req.method === "POST" && url.pathname === "/api/remote/accept") return json(res, 200, remoteAccept(await readBody(req)));
+    if (req.method === "POST" && url.pathname === "/api/remote/stop") return json(res, 200, remoteStop(await readBody(req)));
+    if (req.method === "POST" && url.pathname === "/api/remote/message") return json(res, 200, remoteMessage(await readBody(req)));
+    if (req.method === "POST" && url.pathname === "/api/remote/device") return json(res, 200, remoteDevice(await readBody(req)));
+    if (req.method === "GET" && url.pathname.startsWith("/api/remote/status/")) {
+      const token = decodeURIComponent(url.pathname.replace("/api/remote/status/", ""));
+      return json(res, 200, remoteStatus(token));
+    }
+
     if (req.method === "GET" && url.pathname === "/api/connectors") return json(res, 200, await connectorStatus());
     if (req.method === "GET" && url.pathname === "/api/ollama/tags") { const r = await fetchJson(`${OLLAMA_URL}/api/tags`); return json(res, r.status, r.data); }
     if (req.method === "POST" && url.pathname === "/api/ollama/generate") return proxyOllama("/api/generate", await readBody(req), res);
