@@ -590,7 +590,7 @@ public class MainActivity extends Activity {
         robotWrap.setPadding(0, dp(8), 0, dp(4));
         robotView = new ImageView(this);
         robotView.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        robotWrap.addView(robotView, lp(72, 72));
+        robotWrap.addView(robotView, lp(96, 96));
         panel.addView(robotWrap);
         startRobotIdleAnim();
 
@@ -1462,7 +1462,7 @@ public class MainActivity extends Activity {
     private void updateRobotSizeForChat() {
         if (robotView == null || robotWrap == null) return;
         // Keep tiny during active conversation so chat stays readable
-        int s = messageCount > 0 ? dp(48) : dp(72);
+        int s = messageCount > 0 ? dp(56) : dp(96);
         LinearLayout.LayoutParams rlp = (LinearLayout.LayoutParams) robotView.getLayoutParams();
         if (rlp == null) rlp = lp(s, s);
         else { rlp.width = s; rlp.height = s; }
@@ -1533,6 +1533,20 @@ public class MainActivity extends Activity {
 
     private void refreshRobotFrame() {
         if (robotView == null) return;
+        try {
+            int resId;
+            if (robotThinking) {
+                resId = getResources().getIdentifier("robot_think", "drawable", getPackageName());
+            } else if (robotBlinkClosed) {
+                resId = getResources().getIdentifier("robot_blink", "drawable", getPackageName());
+            } else {
+                resId = getResources().getIdentifier("robot_idle", "drawable", getPackageName());
+            }
+            if (resId != 0) {
+                robotView.setImageResource(resId);
+                return;
+            }
+        } catch (Exception ignored) {}
         int s = robotView.getLayoutParams() != null ? robotView.getLayoutParams().width : dp(72);
         if (s <= 0) s = dp(72);
         robotView.setImageBitmap(drawRobotBitmap(s, robotThinking, robotBlinkClosed));
