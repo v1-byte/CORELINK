@@ -979,15 +979,22 @@ public class MainActivity extends Activity {
         panel.setPadding(dp(14), dp(14), dp(14), dp(28));
         panel.setBackgroundColor(BG);
 
-        TextView heading = makeText("REMOTE MODULES", 12, BLUE);
+        TextView heading = makeText("REMOTE · IZIN 2 PIHAK", 12, BLUE);
         heading.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
-        heading.setLetterSpacing(0.08f);
+        heading.setLetterSpacing(0.06f);
         panel.addView(heading);
 
         TextView sub = makeText(
-                "Daftar fitur siap dikembangkan. Saat ini UI + alur token; engine remote menyusul.",
-                11, MUTED);
-        sub.setPadding(0, dp(4), 0, dp(12));
+                "Alur perbaikan HP / medsos (support):\n" +
+                "1. ADMIN share link APK User (Assist)\n" +
+                "2. USER install APK\n" +
+                "3. USER generate TOKEN → kirim ke admin\n" +
+                "4. ADMIN tempel token → USER setuju popup\n" +
+                "5. Sesi support jalan (engine bertahap)\n\n" +
+                "Tetap di navbar REMOTE. Bukan remote diam-diam.",
+                12, TEXT);
+        sub.setPadding(0, dp(6), 0, dp(12));
+        sub.setLineSpacing(dp(2), 1.2f);
         panel.addView(sub);
 
         // ── Card 1: MyBase ──
@@ -1016,18 +1023,19 @@ public class MainActivity extends Activity {
         panel.addView(myBase);
 
         // ── Card Assist (user APK share) ──
-        panel.addView(sectionTitle("①b  CORELINK ASSIST", "APK user · share · izin 2 pihak"));
+        panel.addView(sectionTitle("1. ADMIN → SHARE APK USER", "CoreLink Assist · link untuk pihak yang dibantu"));
         LinearLayout assist = card();
         assist.addView(bodyText(
-                "APK pendamping untuk USER (pihak yang dibantu).\n\n" +
-                "Install → user setuju syarat support.\n" +
-                "Token + konfirmasi popup sebelum sesi.\n" +
-                "USER / ADMIN bisa STOP kapan saja.\n\n" +
-                "Bukan akses diam-diam ke app lain (FB/IG/dll)."));
+                "Admin butuh bantu perbaikan HP / akun medsos?\n" +
+                "Cukup BAGIKAN LINK APK ke user.\n\n" +
+                "User: install → buka → Generate Token → kirim ke kamu.\n" +
+                "Lalu di bawah (ADMIN Desk) tempel token.\n" +
+                "User harus setuju popup sebelum sesi.\n" +
+                "STOP kapan saja oleh kedua pihak.");
         LinearLayout asRow = new LinearLayout(this);
         asRow.setOrientation(LinearLayout.HORIZONTAL);
         asRow.setPadding(0, dp(10), 0, 0);
-        Button shareApk = smallBtn("BAGIKAN LINK APK", BLUE);
+        Button shareApk = smallBtn("SHARE LINK APK USER", BLUE);
         Button copyTerms = smallBtn("SALIN SYARAT IZIN", Color.rgb(22, 64, 88));
         asRow.addView(shareApk, rowBtnLp());
         asRow.addView(copyTerms, rowBtnLp());
@@ -1037,7 +1045,9 @@ public class MainActivity extends Activity {
             Intent send = new Intent(Intent.ACTION_SEND);
             send.setType("text/plain");
             send.putExtra(Intent.EXTRA_TEXT,
-                    "CoreLink Assist (user) — remote support izin 2 pihak.\nDownload: " + link);
+                    "Install CoreLink Assist (user remote support).\n" +
+                    "Setelah install: buka app → REMOTE → Generate Token → kirim token ke admin.\n" +
+                    "Download: " + link);
             startActivity(Intent.createChooser(send, "Bagikan CoreLink Assist"));
         });
         copyTerms.setOnClickListener(v -> {
@@ -1055,7 +1065,7 @@ public class MainActivity extends Activity {
         panel.addView(assist);
 
         // ── Card 2: CoreLink Desk (admin) ──
-        panel.addView(sectionTitle("②  CORELINK DESK", "Connector Android / PC · izin 2 pihak"));
+        panel.addView(sectionTitle("2. TOKEN & SESI", "User buat token · Admin hubungkan · izin 2 pihak"));
         LinearLayout aConn = card();
         aConn.addView(bodyText(
                 "Remote SUPPORT — wajib izin Admin + User.\n\n" +
