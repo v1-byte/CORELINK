@@ -1015,24 +1015,66 @@ public class MainActivity extends Activity {
                 Toast.makeText(this, "Laporan MyBase belum tersedia.", Toast.LENGTH_SHORT).show());
         panel.addView(myBase);
 
-        // ── Card 2: A-Connect ──
-        panel.addView(sectionTitle("②  A-CONNECT", "Remote support Desktop / Android"));
+        // ── Card Assist (user APK share) ──
+        panel.addView(sectionTitle("①b  CORELINK ASSIST", "APK user · share · izin 2 pihak"));
+        LinearLayout assist = card();
+        assist.addView(bodyText(
+                "APK pendamping untuk USER (pihak yang dibantu).\n\n" +
+                "Install → user setuju syarat support.\n" +
+                "Token + konfirmasi popup sebelum sesi.\n" +
+                "USER / ADMIN bisa STOP kapan saja.\n\n" +
+                "Bukan akses diam-diam ke app lain (FB/IG/dll)."));
+        LinearLayout asRow = new LinearLayout(this);
+        asRow.setOrientation(LinearLayout.HORIZONTAL);
+        asRow.setPadding(0, dp(10), 0, 0);
+        Button shareApk = smallBtn("BAGIKAN LINK APK", BLUE);
+        Button copyTerms = smallBtn("SALIN SYARAT IZIN", Color.rgb(22, 64, 88));
+        asRow.addView(shareApk, rowBtnLp());
+        asRow.addView(copyTerms, rowBtnLp());
+        assist.addView(asRow);
+        shareApk.setOnClickListener(v -> {
+            String link = "https://github.com/v1-byte/CORELINK/releases";
+            Intent send = new Intent(Intent.ACTION_SEND);
+            send.setType("text/plain");
+            send.putExtra(Intent.EXTRA_TEXT,
+                    "CoreLink Assist (user) — remote support izin 2 pihak.\nDownload: " + link);
+            startActivity(Intent.createChooser(send, "Bagikan CoreLink Assist"));
+        });
+        copyTerms.setOnClickListener(v -> {
+            String terms =
+                    "SYARAT IZIN 2 PIHAK\n" +
+                    "1. USER buat token & kirim ke ADMIN.\n" +
+                    "2. ADMIN minta sesi dengan token.\n" +
+                    "3. USER tekan YA pada popup izinkan.\n" +
+                    "4. Salah satu pihak bisa STOP sesi.\n" +
+                    "5. Tidak ada remote tanpa kedua izin.";
+            ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            cm.setPrimaryClip(ClipData.newPlainText("syarat", terms));
+            Toast.makeText(this, "Syarat izin 2 pihak disalin.", Toast.LENGTH_SHORT).show();
+        });
+        panel.addView(assist);
+
+        // ── Card 2: CoreLink Desk (admin) ──
+        panel.addView(sectionTitle("②  CORELINK DESK", "Connector Android / PC · izin 2 pihak"));
         LinearLayout aConn = card();
         aConn.addView(bodyText(
-                "Remote support dengan persetujuan eksplisit.\n\n" +
-                "Alur:\n" +
-                "1. USER buka A-Connect → Generate Token\n" +
-                "2. USER kirim token ke ADMIN (chat / QR nanti)\n" +
-                "3. ADMIN masukkan token → sesi support dimulai\n" +
-                "4. Sesi bisa dihentikan kapan saja oleh USER\n\n" +
-                "Bukan remote diam-diam. Harus token + izin user."));
+                "Remote SUPPORT — wajib izin Admin + User.\n\n" +
+                "Nama modul admin: CoreLink Desk (Connector Android/PC)\n" +
+                "APK user: CoreLink Assist (bisa di-share)\n\n" +
+                "Alur izin 2 pihak:\n" +
+                "1. USER install Assist → setuju syarat support\n" +
+                "2. USER Generate Token + kirim ke ADMIN\n" +
+                "3. ADMIN (CoreLink Desk) tempel token → minta sesi\n" +
+                "4. USER konfirmasi POPUP "Izinkan support?" → YA\n" +
+                "5. Sesi aktif; USER atau ADMIN bisa STOP kapan saja\n\n" +
+                "Tidak ada remote tanpa token + konfirmasi user."));
 
         // Role buttons
         LinearLayout roleRow = new LinearLayout(this);
         roleRow.setOrientation(LinearLayout.HORIZONTAL);
         roleRow.setPadding(0, dp(10), 0, 0);
-        Button asUser = smallBtn("SAYA USER", BLUE);
-        Button asAdmin = smallBtn("SAYA ADMIN", Color.rgb(22, 90, 70));
+        Button asUser = smallBtn("USER (Assist)", BLUE);
+        Button asAdmin = smallBtn("ADMIN (Desk)", Color.rgb(22, 90, 70));
         roleRow.addView(asUser, rowBtnLp());
         roleRow.addView(asAdmin, rowBtnLp());
         aConn.addView(roleRow);
@@ -1078,14 +1120,14 @@ public class MainActivity extends Activity {
         aConn.addView(adminConnect, acLp);
 
         asUser.setOnClickListener(v -> {
-            aConnectStatusView.setText("Mode: USER (perangkat yang dibantu)");
+            aConnectStatusView.setText("Mode: USER · menunggu izin 2 pihak");
             aConnectStatusView.setTextColor(GREEN);
             adminTokenIn.setVisibility(View.GONE);
             adminConnect.setVisibility(View.GONE);
             genTok.setVisibility(View.VISIBLE);
         });
         asAdmin.setOnClickListener(v -> {
-            aConnectStatusView.setText("Mode: ADMIN (pemberi bantuan remote)");
+            aConnectStatusView.setText("Mode: ADMIN CoreLink Desk · butuh token + izin user");
             aConnectStatusView.setTextColor(AMBER);
             adminTokenIn.setVisibility(View.VISIBLE);
             adminConnect.setVisibility(View.VISIBLE);
@@ -1097,9 +1139,9 @@ public class MainActivity extends Activity {
             aConnectToken = tok;
             prefs.edit().putString("aconnect_token", tok).apply();
             aConnectTokenView.setText("Token: " + tok);
-            aConnectStatusView.setText("Mode: USER · token siap dibagikan ke admin");
+            aConnectStatusView.setText("USER · token siap · admin harus dikonfirmasi user");
             aConnectStatusView.setTextColor(GREEN);
-            Toast.makeText(this, "Token dibuat. Kirim ke admin support.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Token dibuat. Kirim ke Admin Desk. Sesi hanya setelah user setuju.", Toast.LENGTH_LONG).show();
         });
         copyTok.setOnClickListener(v -> {
             if (aConnectToken == null || aConnectToken.isEmpty()) {
@@ -1127,9 +1169,9 @@ public class MainActivity extends Activity {
                 Toast.makeText(this, "Tempel token dari user dulu.", Toast.LENGTH_SHORT).show();
                 return;
             }
-            aConnectStatusView.setText("Admin · token diterima (engine remote belum aktif)");
+            aConnectStatusView.setText("ADMIN · token dicatat · tunggu konfirmasi user (engine menyusul)");
             aConnectStatusView.setTextColor(AMBER);
-            Toast.makeText(this, "Token dicatat. Koneksi remote engine menyusul.", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Token OK. Sesi penuh butuh konfirmasi 2 pihak (engine menyusul).", Toast.LENGTH_LONG).show();
         });
 
         // restore token if any
@@ -1141,8 +1183,8 @@ public class MainActivity extends Activity {
         panel.addView(aConn);
 
         TextView note = makeText(
-                "Catatan keamanan: A-Connect dirancang untuk support dengan izin. " +
-                "Tidak ada kontrol diam-diam. Engine remote (layar/file) akan ditambah bertahap.",
+                "Izin 2 pihak wajib: token USER + konfirmasi USER + aksi ADMIN. " +
+                "CoreLink Desk = admin. CoreLink Assist = user. Engine remote bertahap.",
                 10, MUTED);
         note.setPadding(0, dp(14), 0, 0);
         note.setLineSpacing(dp(2), 1.15f);
