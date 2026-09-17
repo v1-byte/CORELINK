@@ -1035,7 +1035,7 @@ public class MainActivity extends Activity {
                 "User: install → buka → Generate Token → kirim ke kamu.\n" +
                 "Lalu di bawah (ADMIN Desk) tempel token.\n" +
                 "User harus setuju popup sebelum sesi.\n" +
-                "STOP kapan saja oleh kedua pihak.");
+                "STOP kapan saja oleh kedua pihak."));
         LinearLayout asRow = new LinearLayout(this);
         asRow.setOrientation(LinearLayout.HORIZONTAL);
         asRow.setPadding(0, dp(10), 0, 0);
@@ -1079,7 +1079,7 @@ public class MainActivity extends Activity {
                 "1. USER install Assist → setuju syarat support\n" +
                 "2. USER Generate Token + kirim ke ADMIN\n" +
                 "3. ADMIN (CoreLink Desk) tempel token → minta sesi\n" +
-                "4. USER konfirmasi POPUP "Izinkan support?" → YA\n" +
+                "4. USER konfirmasi POPUP Izinkan support? → YA\n" +
                 "5. Sesi aktif; USER atau ADMIN bisa STOP kapan saja\n\n" +
                 "Tidak ada remote tanpa token + konfirmasi user."));
 
