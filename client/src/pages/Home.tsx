@@ -44,13 +44,29 @@ export default function Home() {
   const [model, setModel] = useState(() => localStorage.getItem("corelink-ollama-model") || "qwen2.5-coder:1.5b");
   const abortRef = useRef<AbortController | null>(null);
   const visibleConnectors = useMemo(() => connectors, []);
+  const isConnectorRequest = (text: string) => /\b(github|gitlab|vercel|supabase|huggingface|docker|cloudflared|repository|repo|project|deployment|model hub|container)\b/i.test(text);
 
   const sendMessage = () => {
     const value = input.trim();
     if (!value || thinking) return;
     setMessages((m) => [...m, { role: "user", text: value, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) }]);
     setInput(""); setThinking(true);
-    if (ollamaOnline) {
+    if (ollamaOnline && isConnectorRequest(value)) {
+      const controller = new AbortController(); abortRef.current = controller;
+      const timer = window.setTimeout(() => controller.abort(), 15000);
+      const answerTime = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      setMessages((m) => [...m, { role: "assistant", text: "", time: answerTime }]);
+      fetch(`${bridgeUrl.replace(/\/$/, "")}/api/agent`, { signal: controller.signal, method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt: value, model }) })
+        .then(async (response) => {
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.error || `Bridge HTTP ${response.status}`);
+          const result = data.result || data;
+          const text = result.configured === false ? `GitHub belum dikonfigurasi. Tambahkan GITHUB_TOKEN di ~/corelink-bridge/.env lalu restart bridge.` : JSON.stringify(data, null, 2);
+          setMessages((m) => { const copy = [...m]; const last = copy.length - 1; if (copy[last]?.role === "assistant") copy[last] = { ...copy[last], text }; return copy; });
+        })
+        .catch((error) => setMessages((m) => [...m, { role: "assistant", text: error.name === "AbortError" ? "Permintaan connector timeout." : `Bridge error: ${error.message}`, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) }]))
+        .finally(() => { window.clearTimeout(timer); setThinking(false); abortRef.current = null; });
+    } else if (ollamaOnline) {
       const controller = new AbortController(); abortRef.current = controller;
       const timer = window.setTimeout(() => controller.abort(), 120000);
       const answerTime = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
