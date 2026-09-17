@@ -7,6 +7,12 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.Intent;
 import android.graphics.Color;
+import android.view.MenuItem;
+import android.widget.PopupMenu;
+import android.graphics.Path;
+import android.graphics.Paint;
+import android.graphics.Canvas;
+import android.graphics.Bitmap;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
@@ -100,6 +106,12 @@ public class MainActivity extends Activity {
     private EditText remoteChatInput;
     private TextView remoteChatLog;
     private android.animation.ObjectAnimator sendGlowAnimator;
+    private ImageView robotView;
+    private LinearLayout robotWrap;
+    private boolean robotThinking = false;
+    private boolean robotBlinkClosed = false;
+    private Runnable robotAnimRunnable;
+    private int messageCount = 0;
 
     // State
     private String bridge = "http://127.0.0.1:8787";
@@ -315,6 +327,8 @@ public class MainActivity extends Activity {
         messagesContainer.addView(bubble);
         animateBubbleIn(bubble, isUser);
         smoothScrollToBottom();
+        messageCount++;
+        updateRobotSizeForChat();
     }
 
     // ─── Thinking animation ──────────────────────────────────────────────────
@@ -322,6 +336,7 @@ public class MainActivity extends Activity {
     private void showThinking() {
         if (isThinking) return;
         isThinking = true;
+        setRobotThinking(true);
 
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
@@ -411,6 +426,7 @@ public class MainActivity extends Activity {
 
     private void hideThinking() {
         isThinking = false;
+        setRobotThinking(false);
         if (thinkingAnimator != null) mainHandler.removeCallbacks(thinkingAnimator);
         if (thinkingView != null) {
             final View v = thinkingView;
@@ -473,16 +489,7 @@ public class MainActivity extends Activity {
         titles.addView(sub);
         header.addView(titles, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
 
-        // ONLINE text removed — status via navbar only
-        rootLayout.addView(header);
-
-        // Navbar
-        LinearLayout navBar = new LinearLayout(this);
-        navBar.setOrientation(LinearLayout.HORIZONTAL);
-        navBar.setPadding(dp(8), dp(10), dp(8), dp(10));
-        navBar.setBackgroundColor(BG);
-
-        // Compact labels so 6 tabs fit on phone
+        // 3-dot menu (screenshot style) — tabs hidden in popup
         tabChat = makeTab("CHAT", true);
         tabBridge = makeTab("LINK", false);
         tabTools = makeTab("TOOLS", false);
@@ -490,13 +497,11 @@ public class MainActivity extends Activity {
         tabSettings = makeTab("AI", false);
         tabRemote = makeTab("REMOTE", false);
 
-        navBar.addView(tabChat, tabLp());
-        navBar.addView(tabBridge, tabLp());
-        navBar.addView(tabTools, tabLp());
-        navBar.addView(tabSetup, tabLp());
-        navBar.addView(tabSettings, tabLp());
-        navBar.addView(tabRemote, tabLp());
-        rootLayout.addView(navBar);
+        TextView menuBtn = makeText("⋮", 22, TEXT);
+        menuBtn.setPadding(dp(12), dp(4), dp(8), dp(4));
+        menuBtn.setOnClickListener(v -> showNavMenu(v));
+        header.addView(menuBtn);
+        rootLayout.addView(header);
 
         // Content
         FrameLayout content = new FrameLayout(this);
@@ -578,12 +583,23 @@ public class MainActivity extends Activity {
         panel.setOrientation(LinearLayout.VERTICAL);
         panel.setBackgroundColor(BG);
 
+        // Small robot mascot (idle blink / thinking hand-on-head)
+        robotWrap = new LinearLayout(this);
+        robotWrap.setOrientation(LinearLayout.VERTICAL);
+        robotWrap.setGravity(Gravity.CENTER_HORIZONTAL);
+        robotWrap.setPadding(0, dp(8), 0, dp(4));
+        robotView = new ImageView(this);
+        robotView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        robotWrap.addView(robotView, lp(72, 72));
+        panel.addView(robotWrap);
+        startRobotIdleAnim();
+
         chatScroll = new ScrollView(this);
         chatScroll.setFillViewport(true);
         chatScroll.setVerticalScrollBarEnabled(false);
         messagesContainer = new LinearLayout(this);
         messagesContainer.setOrientation(LinearLayout.VERTICAL);
-        messagesContainer.setPadding(dp(14), dp(12), dp(14), dp(16));
+        messagesContainer.setPadding(dp(14), dp(8), dp(14), dp(16));
         chatScroll.addView(messagesContainer);
         panel.addView(chatScroll, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1));
@@ -1420,6 +1436,209 @@ public class MainActivity extends Activity {
 
     // ─── Network ─────────────────────────────────────────────────────────────
 
+
+
+    private void showNavMenu(View anchor) {
+        PopupMenu pm = new PopupMenu(this, anchor);
+        pm.getMenu().add(0, 1, 0, "CHAT");
+        pm.getMenu().add(0, 2, 1, "LINK");
+        pm.getMenu().add(0, 3, 2, "TOOLS");
+        pm.getMenu().add(0, 4, 3, "SETUP");
+        pm.getMenu().add(0, 5, 4, "AI");
+        pm.getMenu().add(0, 6, 5, "REMOTE");
+        pm.setOnMenuItemClickListener(item -> {
+            int id = item.getItemId();
+            if (id == 1) { setActiveTab(tabChat); showPanel(chatPanel); }
+            else if (id == 2) { setActiveTab(tabBridge); showPanel(bridgePanel); }
+            else if (id == 3) { setActiveTab(tabTools); showPanel(toolsPanel); }
+            else if (id == 4) { setActiveTab(tabSetup); showPanel(setupPanel); }
+            else if (id == 5) { setActiveTab(tabSettings); showPanel(settingsPanel); }
+            else if (id == 6) { setActiveTab(tabRemote); showPanel(remotePanel); }
+            return true;
+        });
+        pm.show();
+    }
+
+    private void updateRobotSizeForChat() {
+        if (robotView == null || robotWrap == null) return;
+        // Keep tiny during active conversation so chat stays readable
+        int s = messageCount > 0 ? dp(48) : dp(72);
+        LinearLayout.LayoutParams rlp = (LinearLayout.LayoutParams) robotView.getLayoutParams();
+        if (rlp == null) rlp = lp(s, s);
+        else { rlp.width = s; rlp.height = s; }
+        robotView.setLayoutParams(rlp);
+        robotWrap.setPadding(0, messageCount > 0 ? dp(2) : dp(8), 0, dp(2));
+        refreshRobotFrame();
+    }
+
+    private void setRobotThinking(boolean thinking) {
+        robotThinking = thinking;
+        if (thinking) {
+            // stop pure idle blink loop; thinking loop takes over
+            refreshRobotFrame();
+            if (robotView != null) {
+                robotView.animate().cancel();
+                robotView.animate().rotation(-8f).setDuration(280)
+                        .withEndAction(() -> {
+                            if (robotThinking && robotView != null)
+                                robotView.animate().rotation(8f).setDuration(280)
+                                        .withEndAction(() -> {
+                                            if (robotThinking && robotView != null)
+                                                robotView.animate().rotation(-8f).setDuration(280).start();
+                                        }).start();
+                        }).start();
+            }
+        } else {
+            if (robotView != null) {
+                robotView.animate().cancel();
+                robotView.setRotation(0f);
+            }
+            refreshRobotFrame();
+        }
+    }
+
+    private void startRobotIdleAnim() {
+        if (robotAnimRunnable != null) mainHandler.removeCallbacks(robotAnimRunnable);
+        robotAnimRunnable = new Runnable() {
+            int tick = 0;
+            @Override public void run() {
+                if (robotView == null) return;
+                tick++;
+                if (robotThinking) {
+                    // thinking: redraw with hand on head + slight pulse
+                    robotBlinkClosed = false;
+                    refreshRobotFrame();
+                    if (robotView != null) {
+                        float scale = (tick % 2 == 0) ? 1.04f : 1f;
+                        robotView.setScaleX(scale);
+                        robotView.setScaleY(scale);
+                    }
+                    mainHandler.postDelayed(this, 400);
+                } else {
+                    // idle: blink every few ticks
+                    robotBlinkClosed = (tick % 8 == 0) || (tick % 8 == 1);
+                    refreshRobotFrame();
+                    if (robotView != null) {
+                        robotView.setScaleX(1f);
+                        robotView.setScaleY(1f);
+                        robotView.setRotation(0f);
+                    }
+                    mainHandler.postDelayed(this, 280);
+                }
+            }
+        };
+        mainHandler.post(robotAnimRunnable);
+        refreshRobotFrame();
+    }
+
+    private void refreshRobotFrame() {
+        if (robotView == null) return;
+        int s = robotView.getLayoutParams() != null ? robotView.getLayoutParams().width : dp(72);
+        if (s <= 0) s = dp(72);
+        robotView.setImageBitmap(drawRobotBitmap(s, robotThinking, robotBlinkClosed));
+    }
+
+    /** Simple mascot: idle arms down + blink; thinking hand on head */
+    private Bitmap drawRobotBitmap(int size, boolean thinking, boolean blink) {
+        Bitmap bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(bmp);
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        float cx = size / 2f;
+        float cy = size / 2f;
+        float headR = size * 0.32f;
+
+        // soft shadow
+        p.setColor(Color.argb(30, 0, 120, 180));
+        c.drawCircle(cx, cy + size * 0.08f, headR * 1.15f, p);
+
+        // body
+        p.setColor(Color.rgb(0, 170, 230));
+        c.drawRoundRect(cx - headR * 0.7f, cy + headR * 0.35f, cx + headR * 0.7f, cy + headR * 1.35f, headR * 0.3f, headR * 0.3f, p);
+
+        // head
+        p.setColor(Color.rgb(245, 250, 255));
+        c.drawCircle(cx, cy - headR * 0.1f, headR, p);
+        p.setStyle(Paint.Style.STROKE);
+        p.setStrokeWidth(size * 0.02f);
+        p.setColor(Color.rgb(0, 170, 230));
+        c.drawCircle(cx, cy - headR * 0.1f, headR, p);
+        p.setStyle(Paint.Style.FILL);
+
+        // antenna
+        p.setColor(Color.rgb(0, 170, 230));
+        c.drawRect(cx - size * 0.02f, cy - headR * 1.35f, cx + size * 0.02f, cy - headR * 0.9f, p);
+        c.drawCircle(cx, cy - headR * 1.4f, size * 0.045f, p);
+
+        // face plate
+        p.setColor(Color.rgb(20, 35, 55));
+        c.drawRoundRect(cx - headR * 0.55f, cy - headR * 0.35f, cx + headR * 0.55f, cy + headR * 0.25f, headR * 0.25f, headR * 0.25f, p);
+
+        // eyes
+        float eyeY = cy - headR * 0.08f;
+        float eyeR = size * 0.045f;
+        if (blink) {
+            p.setColor(Color.rgb(0, 220, 200));
+            p.setStrokeWidth(size * 0.025f);
+            p.setStyle(Paint.Style.STROKE);
+            c.drawLine(cx - headR * 0.28f - eyeR, eyeY, cx - headR * 0.28f + eyeR, eyeY, p);
+            c.drawLine(cx + headR * 0.28f - eyeR, eyeY, cx + headR * 0.28f + eyeR, eyeY, p);
+            p.setStyle(Paint.Style.FILL);
+        } else {
+            p.setColor(Color.rgb(0, 230, 210));
+            c.drawCircle(cx - headR * 0.28f, eyeY, eyeR, p);
+            c.drawCircle(cx + headR * 0.28f, eyeY, eyeR, p);
+            p.setColor(Color.rgb(10, 20, 30));
+            c.drawCircle(cx - headR * 0.28f, eyeY, eyeR * 0.45f, p);
+            c.drawCircle(cx + headR * 0.28f, eyeY, eyeR * 0.45f, p);
+        }
+
+        // smile
+        p.setColor(Color.rgb(0, 220, 200));
+        p.setStyle(Paint.Style.STROKE);
+        p.setStrokeWidth(size * 0.02f);
+        p.setStrokeCap(Paint.Cap.ROUND);
+        Path smile = new Path();
+        smile.moveTo(cx - headR * 0.2f, cy + headR * 0.12f);
+        smile.quadTo(cx, cy + headR * 0.22f, cx + headR * 0.2f, cy + headR * 0.12f);
+        c.drawPath(smile, p);
+        p.setStyle(Paint.Style.FILL);
+
+        // arms
+        p.setColor(Color.rgb(0, 170, 230));
+        p.setStrokeWidth(size * 0.07f);
+        p.setStrokeCap(Paint.Cap.ROUND);
+        p.setStyle(Paint.Style.STROKE);
+        if (thinking) {
+            // left arm up to head (thinking pose)
+            c.drawLine(cx - headR * 0.75f, cy + headR * 0.55f, cx - headR * 0.85f, cy - headR * 0.35f, p);
+            c.drawLine(cx - headR * 0.85f, cy - headR * 0.35f, cx - headR * 0.45f, cy - headR * 0.55f, p);
+            // right arm normal
+            c.drawLine(cx + headR * 0.75f, cy + headR * 0.55f, cx + headR * 1.05f, cy + headR * 1.0f, p);
+            // hand near head
+            p.setStyle(Paint.Style.FILL);
+            c.drawCircle(cx - headR * 0.42f, cy - headR * 0.55f, size * 0.05f, p);
+        } else {
+            c.drawLine(cx - headR * 0.75f, cy + headR * 0.55f, cx - headR * 1.05f, cy + headR * 1.0f, p);
+            c.drawLine(cx + headR * 0.75f, cy + headR * 0.55f, cx + headR * 1.05f, cy + headR * 1.0f, p);
+            p.setStyle(Paint.Style.FILL);
+            c.drawCircle(cx - headR * 1.05f, cy + headR * 1.0f, size * 0.045f, p);
+            c.drawCircle(cx + headR * 1.05f, cy + headR * 1.0f, size * 0.045f, p);
+        }
+
+        // chest badge
+        p.setColor(Color.rgb(0, 220, 180));
+        c.drawCircle(cx, cy + headR * 0.75f, size * 0.06f, p);
+        p.setColor(Color.WHITE);
+        p.setStrokeWidth(size * 0.015f);
+        p.setStyle(Paint.Style.STROKE);
+        Path check = new Path();
+        check.moveTo(cx - size * 0.03f, cy + headR * 0.75f);
+        check.lineTo(cx - size * 0.005f, cy + headR * 0.75f + size * 0.025f);
+        check.lineTo(cx + size * 0.035f, cy + headR * 0.75f - size * 0.025f);
+        c.drawPath(check, p);
+
+        return bmp;
+    }
 
     private void startSendGlow() {
         if (sendBtn == null) return;
