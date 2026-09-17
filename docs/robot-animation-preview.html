@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>AI Robot Chat — Thinking / Idle</title>
+<style>
+*{box-sizing:border-box}
+:root{
+  --bg:#07111d; --panel:#0c1a2a; --cyan:#5ff6ff; --blue:#278dff;
+}
+body{
+  margin:0; min-height:100vh; display:grid; place-items:center;
+  background:radial-gradient(circle at 50% 25%,#15334b 0,#07111d 48%,#03080e 100%);
+  color:#eafcff; font-family:system-ui,-apple-system,Segoe UI,sans-serif;
+}
+.app{width:min(94vw,620px); padding:18px}
+.card{
+  background:rgba(7,17,29,.88); border:1px solid rgba(95,246,255,.22);
+  border-radius:24px; padding:18px; box-shadow:0 18px 60px #0008;
+  backdrop-filter:blur(12px);
+}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.title{font-weight:800;font-size:18px}
+.status{font-size:12px;padding:7px 10px;border-radius:999px;background:#102234}
+.status.thinking{color:var(--cyan);box-shadow:0 0 18px #5ff6ff55}
+.stage{position:relative;width:min(100%,520px);margin:auto;aspect-ratio:1/1}
+.robot-img{
+  position:absolute;inset:0;width:100%;height:100%;object-fit:contain;
+  user-select:none;-webkit-user-drag:none;
+  transform-origin:50% 58%;
+  transition:transform .45s ease,filter .45s ease;
+}
+.stage.thinking .robot-img{
+  animation:bodyThink 2.2s ease-in-out infinite;
+  filter:drop-shadow(0 0 14px #4defff33);
+}
+@keyframes bodyThink{
+  0%,100%{transform:translateY(0) rotate(0)}
+  50%{transform:translateY(-5px) rotate(-1deg)}
+}
+
+/* The original picture contains the face as one bitmap.
+   This black face layer hides the original eyes and gives JS full eye control. */
+.face{
+  position:absolute; left:30.8%; top:30.1%; width:27.2%; height:19.1%;
+  border-radius:14% / 18%; background:#071014;
+  box-shadow:inset 0 0 0 2px #182a31,0 0 12px #0008;
+  overflow:hidden;
+}
+.eye{
+  position:absolute; top:30%; width:19%; height:31%;
+  border-radius:50%; background:#bfffee;
+  box-shadow:0 0 12px #66fff0aa;
+  transform-origin:center;
+}
+.eye.left{left:22%}.eye.right{right:22%}
+.eye.blink{animation:blink .16s ease-in-out both}
+@keyframes blink{
+  0%{transform:scaleY(1)}
+  45%{transform:scaleY(.06)}
+  100%{transform:scaleY(1)}
+}
+.stage.thinking .eye{
+  animation:thinkEye 1.35s ease-in-out infinite;
+}
+.stage.thinking .eye.blink{animation:blink .16s ease-in-out both}
+@keyframes thinkEye{
+  0%,100%{transform:translateY(0) scale(1)}
+  50%{transform:translateY(-2px) scale(.93)}
+}
+.think-dot{
+  position:absolute;left:50%;bottom:10%;transform:translateX(-50%);
+  width:5px;height:5px;border-radius:50%;background:var(--cyan);
+  opacity:0;box-shadow:0 0 12px var(--cyan);
+}
+.stage.thinking .think-dot{opacity:1;animation:dots 1s infinite alternate}
+@keyframes dots{to{transform:translateX(-50%) scale(1.8);opacity:.35}}
+
+.controls{display:flex;gap:10px;margin-top:14px}
+button{
+  flex:1;border:0;border-radius:14px;padding:13px 12px;
+  color:white;background:#14283b;font-weight:700;cursor:pointer;
+}
+button.active{background:linear-gradient(135deg,#087fbe,#245bff);box-shadow:0 0 20px #208cff44}
+button:active{transform:scale(.98)}
+.chat{margin-top:14px}
+.messages{
+  height:150px;overflow:auto;padding:12px;border-radius:16px;background:#06101a;
+  border:1px solid #ffffff0d;
+}
+.msg{max-width:85%;padding:9px 12px;border-radius:13px;margin:6px 0;font-size:14px}
+.user{margin-left:auto;background:#16456a}.ai{background:#10212d}
+.composer{display:flex;gap:8px;margin-top:9px}
+input{
+  min-width:0;flex:1;border:1px solid #ffffff15;background:#091724;color:white;
+  border-radius:13px;padding:12px;outline:none;
+}
+.send{flex:0 0 80px}
+.note{font-size:11px;line-height:1.5;color:#8ca5b5;margin-top:10px}
+</style>
+</head>
+<body>
+<main class="app">
+  <section class="card">
+    <div class="header">
+      <div class="title">AI Robot Chat</div>
+      <div id="status" class="status">● IDLE</div>
+    </div>
+
+    <div id="stage" class="stage">
+      <img class="robot-img" src="robot.png" alt="AI Robot">
+      <div class="face" aria-hidden="true">
+        <span id="eyeL" class="eye left"></span>
+        <span id="eyeR" class="eye right"></span>
+        <span class="think-dot"></span>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button id="idleBtn" class="active">IDLE</button>
+      <button id="thinkingBtn">THINKING</button>
+    </div>
+
+    <div class="chat">
+      <div id="messages" class="messages">
+        <div class="msg ai">Halo 👋 Kirim pesan untuk mencoba mode thinking.</div>
+      </div>
+      <div class="composer">
+        <input id="input" placeholder="Tulis pesan..." autocomplete="off">
+        <button id="send" class="send">Kirim</button>
+      </div>
+    </div>
+
+    <div class="note">
+      Mata dikendalikan JavaScript. IDLE = tangan/pose gambar tetap dan kedipan sesekali.
+      THINKING = kedipan lebih sering + gerakan pose ringan. Untuk menggerakkan kedua tangan
+      secara terpisah, aset tangan perlu dipisahkan dari gambar asli.
+    </div>
+  </section>
+</main>
+
+<script>
+/* =========================================================
+   AI ROBOT CONTROLLER — 100% JavaScript
+   ========================================================= */
+const stage = document.getElementById("stage");
+const statusEl = document.getElementById("status");
+const eyeL = document.getElementById("eyeL");
+const eyeR = document.getElementById("eyeR");
+const idleBtn = document.getElementById("idleBtn");
+const thinkingBtn = document.getElementById("thinkingBtn");
+const input = document.getElementById("input");
+const send = document.getElementById("send");
+const messages = document.getElementById("messages");
+
+let mode = "idle";
+let blinkTimer = null;
+let eyeTimer = null;
+
+function setRobotMode(nextMode){
+  mode = nextMode === "thinking" ? "thinking" : "idle";
+
+  stage.classList.toggle("thinking", mode === "thinking");
+  statusEl.textContent = mode === "thinking" ? "● THINKING" : "● IDLE";
+  statusEl.classList.toggle("thinking", mode === "thinking");
+
+  idleBtn.classList.toggle("active", mode === "idle");
+  thinkingBtn.classList.toggle("active", mode === "thinking");
+
+  clearTimeout(blinkTimer);
+  clearTimeout(eyeTimer);
+
+  scheduleBlink();
+}
+
+function blink(){
+  /* Remove first so a new blink can always retrigger. */
+  eyeL.classList.remove("blink");
+  eyeR.classList.remove("blink");
+
+  /* Slightly different timing feels less mechanical. */
+  void eyeL.offsetWidth;
+  void eyeR.offsetWidth;
+
+  eyeL.classList.add("blink");
+  eyeR.classList.add("blink");
+
+  setTimeout(() => {
+    eyeL.classList.remove("blink");
+    eyeR.classList.remove("blink");
+  }, 190);
+}
+
+function scheduleBlink(){
+  const min = mode === "thinking" ? 650 : 2200;
+  const max = mode === "thinking" ? 1800 : 6200;
+  const delay = min + Math.random() * (max - min);
+
+  blinkTimer = setTimeout(() => {
+    blink();
+    scheduleBlink();
+  }, delay);
+}
+
+/* Optional small eye direction movement while thinking. */
+function thinkingEyeMovement(){
+  clearTimeout(eyeTimer);
+  if(mode !== "thinking") return;
+
+  const x = (Math.random() - .5) * 5;
+  const y = (Math.random() - .5) * 3;
+
+  eyeL.style.marginLeft = x + "px";
+  eyeR.style.marginRight = (-x) + "px";
+  eyeL.style.marginTop = y + "px";
+  eyeR.style.marginTop = y + "px";
+
+  eyeTimer = setTimeout(thinkingEyeMovement, 900 + Math.random() * 900);
+}
+
+function addMessage(type, text){
+  const el = document.createElement("div");
+  el.className = "msg " + type;
+  el.textContent = text;
+  messages.appendChild(el);
+  messages.scrollTop = messages.scrollHeight;
+}
+
+async function fakeAI(message){
+  /* Ganti fungsi ini dengan fetch() ke API AI Anda. */
+  await new Promise(resolve => setTimeout(resolve, 1800));
+  return "AI selesai memproses: " + message;
+}
+
+async function sendMessage(){
+  const text = input.value.trim();
+  if(!text) return;
+
+  addMessage("user", text);
+  input.value = "";
+
+  setRobotMode("thinking");
+  thinkingEyeMovement();
+
+  try{
+    const answer = await fakeAI(text);
+    addMessage("ai", answer);
+  }catch(error){
+    console.error(error);
+    addMessage("ai", "Terjadi kesalahan saat memproses pesan.");
+  }finally{
+    setRobotMode("idle");
+  }
+}
+
+idleBtn.addEventListener("click", () => setRobotMode("idle"));
+thinkingBtn.addEventListener("click", () => {
+  setRobotMode("thinking");
+  thinkingEyeMovement();
+});
+
+send.addEventListener("click", sendMessage);
+input.addEventListener("keydown", e => {
+  if(e.key === "Enter") sendMessage();
+});
+
+/* Start in IDLE. */
+setRobotMode("idle");
+</script>
+</body>
+</html>

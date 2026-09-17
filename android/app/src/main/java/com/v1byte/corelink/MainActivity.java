@@ -583,14 +583,19 @@ public class MainActivity extends Activity {
         panel.setOrientation(LinearLayout.VERTICAL);
         panel.setBackgroundColor(BG);
 
-        // Small robot mascot (idle blink / thinking hand-on-head)
+        // Professional 3D mascot (from user asset) + motion
         robotWrap = new LinearLayout(this);
         robotWrap.setOrientation(LinearLayout.VERTICAL);
         robotWrap.setGravity(Gravity.CENTER_HORIZONTAL);
-        robotWrap.setPadding(0, dp(8), 0, dp(4));
+        robotWrap.setPadding(0, dp(6), 0, dp(2));
         robotView = new ImageView(this);
         robotView.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        robotWrap.addView(robotView, lp(96, 96));
+        robotView.setAdjustViewBounds(true);
+        try {
+            int mid = getResources().getIdentifier("robot_mascot", "drawable", getPackageName());
+            if (mid != 0) robotView.setImageResource(mid);
+        } catch (Exception ignored) {}
+        robotWrap.addView(robotView, lp(120, 120));
         panel.addView(robotWrap);
         startRobotIdleAnim();
 
@@ -1462,7 +1467,7 @@ public class MainActivity extends Activity {
     private void updateRobotSizeForChat() {
         if (robotView == null || robotWrap == null) return;
         // Keep tiny during active conversation so chat stays readable
-        int s = messageCount > 0 ? dp(56) : dp(96);
+        int s = messageCount > 0 ? dp(64) : dp(120);
         LinearLayout.LayoutParams rlp = (LinearLayout.LayoutParams) robotView.getLayoutParams();
         if (rlp == null) rlp = lp(s, s);
         else { rlp.width = s; rlp.height = s; }
@@ -1473,83 +1478,80 @@ public class MainActivity extends Activity {
 
     private void setRobotThinking(boolean thinking) {
         robotThinking = thinking;
+        if (robotView == null) return;
+        robotView.animate().cancel();
         if (thinking) {
-            // stop pure idle blink loop; thinking loop takes over
-            refreshRobotFrame();
-            if (robotView != null) {
-                robotView.animate().cancel();
-                robotView.animate().rotation(-8f).setDuration(280)
-                        .withEndAction(() -> {
-                            if (robotThinking && robotView != null)
-                                robotView.animate().rotation(8f).setDuration(280)
-                                        .withEndAction(() -> {
-                                            if (robotThinking && robotView != null)
-                                                robotView.animate().rotation(-8f).setDuration(280).start();
-                                        }).start();
-                        }).start();
-            }
+            // Professional thinking: float + slight tilt + glow pulse
+            robotView.setColorFilter(null);
+            runThinkingMotion();
         } else {
-            if (robotView != null) {
-                robotView.animate().cancel();
-                robotView.setRotation(0f);
-            }
-            refreshRobotFrame();
+            robotView.setRotation(0f);
+            robotView.setTranslationY(0f);
+            robotView.setScaleX(1f);
+            robotView.setScaleY(1f);
+            robotView.setAlpha(1f);
         }
+    }
+
+    private void runThinkingMotion() {
+        if (robotView == null || !robotThinking) return;
+        robotView.animate()
+                .translationY(-dp(8))
+                .rotation(-3f)
+                .scaleX(1.05f)
+                .scaleY(1.05f)
+                .alpha(0.92f)
+                .setDuration(700)
+                .setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator())
+                .withEndAction(() -> {
+                    if (robotView == null || !robotThinking) return;
+                    robotView.animate()
+                            .translationY(0f)
+                            .rotation(3f)
+                            .scaleX(1f)
+                            .scaleY(1f)
+                            .alpha(1f)
+                            .setDuration(700)
+                            .withEndAction(this::runThinkingMotion)
+                            .start();
+                }).start();
     }
 
     private void startRobotIdleAnim() {
         if (robotAnimRunnable != null) mainHandler.removeCallbacks(robotAnimRunnable);
+        // Ensure mascot image
+        try {
+            int mid = getResources().getIdentifier("robot_mascot", "drawable", getPackageName());
+            if (mid != 0 && robotView != null) robotView.setImageResource(mid);
+        } catch (Exception ignored) {}
         robotAnimRunnable = new Runnable() {
             int tick = 0;
             @Override public void run() {
                 if (robotView == null) return;
                 tick++;
-                if (robotThinking) {
-                    // thinking: redraw with hand on head + slight pulse
-                    robotBlinkClosed = false;
-                    refreshRobotFrame();
-                    if (robotView != null) {
-                        float scale = (tick % 2 == 0) ? 1.04f : 1f;
-                        robotView.setScaleX(scale);
-                        robotView.setScaleY(scale);
-                    }
-                    mainHandler.postDelayed(this, 400);
-                } else {
-                    // idle: blink every few ticks
-                    robotBlinkClosed = (tick % 8 == 0) || (tick % 8 == 1);
-                    refreshRobotFrame();
-                    if (robotView != null) {
-                        robotView.setScaleX(1f);
-                        robotView.setScaleY(1f);
-                        robotView.setRotation(0f);
-                    }
-                    mainHandler.postDelayed(this, 280);
+                if (!robotThinking) {
+                    // Idle breathe: soft vertical float
+                    float y = (tick % 2 == 0) ? -dp(4) : 0;
+                    robotView.animate().translationY(y).setDuration(900)
+                            .setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator())
+                            .start();
+                    // subtle scale pulse
+                    float sc = (tick % 2 == 0) ? 1.02f : 1f;
+                    robotView.animate().scaleX(sc).scaleY(sc).setDuration(900).start();
                 }
+                mainHandler.postDelayed(this, 1000);
             }
         };
         mainHandler.post(robotAnimRunnable);
-        refreshRobotFrame();
     }
 
     private void refreshRobotFrame() {
+        // Mascot is a single professional PNG; motion is Animator-based
         if (robotView == null) return;
         try {
-            int resId;
-            if (robotThinking) {
-                resId = getResources().getIdentifier("robot_think", "drawable", getPackageName());
-            } else if (robotBlinkClosed) {
-                resId = getResources().getIdentifier("robot_blink", "drawable", getPackageName());
-            } else {
-                resId = getResources().getIdentifier("robot_idle", "drawable", getPackageName());
-            }
-            if (resId != 0) {
-                robotView.setImageResource(resId);
-                return;
-            }
+            int mid = getResources().getIdentifier("robot_mascot", "drawable", getPackageName());
+            if (mid != 0) robotView.setImageResource(mid);
         } catch (Exception ignored) {}
-        int s = robotView.getLayoutParams() != null ? robotView.getLayoutParams().width : dp(72);
-        if (s <= 0) s = dp(72);
-        robotView.setImageBitmap(drawRobotBitmap(s, robotThinking, robotBlinkClosed));
     }
 
     /** Simple mascot: idle arms down + blink; thinking hand on head */
