@@ -133,6 +133,7 @@ public class MainActivity extends Activity {
             "bash start-termux.sh";
 
     private final String setupStep2 =
+            "ollama pull qwen2.5:0.5b\n" +
             "ollama serve";
 
     private final String setupStep3 = "http://127.0.0.1:8787";
@@ -154,7 +155,7 @@ public class MainActivity extends Activity {
             "\n" +
             "# D. APP: LINK → http://127.0.0.1:8787 → CONNECT → CHAT\n" +
             "# EADDRINUSE 8787 = Bridge sudah OK\n" +
-            "# Model: ollama pull qwen2.5-coder:1.5b";
+            "# Model ringan: ollama pull qwen2.5:0.5b";
 
     @Override
     public void onCreate(Bundle state) {
@@ -939,7 +940,7 @@ public class MainActivity extends Activity {
         s2.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
         s2.setPadding(0, dp(18), 0, 0);
         panel.addView(s2);
-        TextView s2d = makeText("Jangan tutup Bridge. Model: ollama pull qwen2.5-coder:1.5b", 11, MUTED);
+        TextView s2d = makeText("Jangan tutup Bridge. Model ringan: ollama pull qwen2.5:0.5b", 11, MUTED);
         s2d.setPadding(0, dp(4), 0, dp(6));
         panel.addView(s2d);
 
@@ -1998,6 +1999,11 @@ public class MainActivity extends Activity {
                 ArrayList<String> names = new ArrayList<>();
                 Matcher m = Pattern.compile("\\\"name\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"").matcher(tags);
                 while (m.find()) names.add(m.group(1));
+                names.sort((a, b) -> {
+                    boolean aLight = a.equalsIgnoreCase("qwen2.5:0.5b") || a.matches("(?i).*0[.]5b.*");
+                    boolean bLight = b.equalsIgnoreCase("qwen2.5:0.5b") || b.matches("(?i).*0[.]5b.*");
+                    return Boolean.compare(!aLight, !bLight);
+                });
 
                 runOnUiThread(() -> {
                     bridgeStatus.setText("  ● Connected");
@@ -2044,7 +2050,7 @@ public class MainActivity extends Activity {
         mainHandler.postDelayed(this::showThinking, 160);
 
         String selected = modelSpinner.getSelectedItem() == null
-                ? "qwen2.5-coder:1.5b"
+                ? "qwen2.5:0.5b"
                 : modelSpinner.getSelectedItem().toString();
 
         executor.execute(() -> {
@@ -2061,7 +2067,7 @@ public class MainActivity extends Activity {
                         "\",\"prompt\":\"" + q.replace("\\", "\\\\").replace("\"", "\\\"") +
                         "\",\"system\":\"" + sys +
                         "\",\"temperature\":" + temperature +
-                        ",\"num_ctx\":8192" + attachmentJson + "}";
+                        ",\"num_ctx\":1024" + attachmentJson + "}";
 
                 String response = request(bridge + "/api/agent", body);
                 String answer = response;

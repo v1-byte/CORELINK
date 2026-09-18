@@ -39,16 +39,16 @@ Pastikan HP dan perangkat browser berada di jaringan Wi-Fi yang sama dan firewal
 CORELINK mengirim request ke model berikut:
 
 ```text
-qwen2.5-coder:1.5b
+qwen2.5:0.5b
 ```
 
 Siapkan modelnya sekali:
 
 ```bash
-ollama pull qwen2.5-coder:1.5b
+ollama pull qwen2.5:0.5b
 ```
 
-CORELINK menggunakan `stream: false` dan `num_ctx: 2048`, sesuai target perangkat Termux dengan RAM terbatas.
+CORELINK menggunakan streaming dan `num_ctx: 1024`, dengan default `qwen2.5:0.5b` agar lebih ringan pada perangkat Termux dengan RAM terbatas. Untuk coding yang lebih berat, pengguna dapat memilih model lain dari daftar model yang terpasang.
 
 ## Status saat ini
 

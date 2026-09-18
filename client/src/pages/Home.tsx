@@ -41,7 +41,7 @@ export default function Home() {
   const [bridgeUrl, setBridgeUrl] = useState(() => localStorage.getItem("corelink-bridge-url") || "http://127.0.0.1:8787");
   const [ollamaOnline, setOllamaOnline] = useState(false);
   const [models, setModels] = useState<string[]>([]);
-  const [model, setModel] = useState(() => localStorage.getItem("corelink-ollama-model") || "qwen2.5-coder:1.5b");
+  const [model, setModel] = useState(() => { const saved = localStorage.getItem("corelink-ollama-model"); return saved && !/([3-9]b|[1-9][0-9]+b)/i.test(saved) ? saved : "qwen2.5:0.5b"; });
   const abortRef = useRef<AbortController | null>(null);
   const visibleConnectors = useMemo(() => connectors, []);
   const isConnectorRequest = (text: string) => /\b(github|gitlab|vercel|supabase|huggingface|docker|cloudflared|repository|repo|project|deployment|model hub|container)\b/i.test(text);
@@ -71,7 +71,7 @@ export default function Home() {
       const timer = window.setTimeout(() => controller.abort(), 120000);
       const answerTime = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
       setMessages((m) => [...m, { role: "assistant", text: "", time: answerTime }]);
-      fetch(`${bridgeUrl.replace(/\/$/, "")}/api/ollama/generate`, { signal: controller.signal, method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model, prompt: value, stream: true, options: { num_ctx: 2048 } }) })
+      fetch(`${bridgeUrl.replace(/\/$/, "")}/api/ollama/generate`, { signal: controller.signal, method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model, prompt: value, stream: true, options: { num_ctx: 1024, temperature: 0.2 } }) })
         .then(async (response) => {
           if (!response.ok || !response.body) throw new Error(`Ollama HTTP ${response.status}`);
           const reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = "";
@@ -94,7 +94,7 @@ export default function Home() {
     if (!value) return;
     const normalized = value.replace(/\/$/, "");
     setBridgeUrl(normalized); localStorage.setItem("corelink-bridge-url", normalized);
-    try { const health = await fetch(`${normalized}/health`, { signal: AbortSignal.timeout(8000) }); if (!health.ok) throw new Error(); const response = await fetch(`${normalized}/api/ollama/tags`, { signal: AbortSignal.timeout(8000) }); if (!response.ok) throw new Error(); const data = await response.json(); const names = (data.models || []).map((entry: { name: string }) => entry.name); setModels(names); if (names.length && !names.includes(model)) { setModel(names[0]); localStorage.setItem("corelink-ollama-model", names[0]); } setOllamaOnline(true); toast.success(`Bridge connected · ${names.length} Ollama model(s)`); }
+    try { const health = await fetch(`${normalized}/health`, { signal: AbortSignal.timeout(8000) }); if (!health.ok) throw new Error(); const response = await fetch(`${normalized}/api/ollama/tags`, { signal: AbortSignal.timeout(8000) }); if (!response.ok) throw new Error(); const data = await response.json(); const names = (data.models || []).map((entry: { name: string }) => entry.name); const preferred = names.find((name: string) => name === "qwen2.5:0.5b") || names.find((name: string) => /0\.5b/i.test(name)) || names[0]; setModels(names); if (preferred && (!names.includes(model) || /([3-9]b|[1-9][0-9]+b)/i.test(model))) { setModel(preferred); localStorage.setItem("corelink-ollama-model", preferred); } setOllamaOnline(true); toast.success(`Bridge connected · ${names.length} Ollama model(s)`); }
     catch { setOllamaOnline(false); toast.error("Ollama belum dapat dijangkau"); }
   };
   useEffect(() => { connectOllamaSilently(); }, []);

@@ -64,12 +64,12 @@ async function runTool(name, prompt, model, attachment, extras = {}) {
   if (name === "docker") return command("docker", ["ps", "--format", "table {{.Names}}\t{{.Status}}\t{{.Image}}"]);
   if (name === "cloudflared") return command("cloudflared", ["tunnel", "list"]);
   const temperature = Number(extras.temperature ?? 0.85);
-  const num_ctx = Number(extras.num_ctx ?? 8192);
+  const num_ctx = Number(extras.num_ctx ?? 1024);
   const system = String(extras.system || "").trim();
   let finalPrompt = prompt;
   if (system) finalPrompt = `${system}\n\n---\nUser request:\n${prompt}`;
   const payload = {
-    model: model || process.env.OLLAMA_MODEL || "qwen2.5-coder:1.5b",
+    model: model || process.env.OLLAMA_MODEL || "qwen2.5:0.5b",
     prompt: finalPrompt,
     stream: false,
     system: system || undefined,
