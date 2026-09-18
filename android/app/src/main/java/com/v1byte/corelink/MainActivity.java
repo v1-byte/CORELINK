@@ -593,8 +593,8 @@ public class MainActivity extends Activity {
         robotView.setScaleType(ImageView.ScaleType.FIT_CENTER);
         robotView.setAdjustViewBounds(true);
         try {
-            int mid = getResources().getIdentifier("robot_mascot", "drawable", getPackageName());
-            if (mid != 0) robotView.setImageResource(mid);
+            int brain = getResources().getIdentifier("ai_brain_think", "drawable", getPackageName());
+            if (brain != 0) robotView.setImageResource(brain);
         } catch (Exception ignored) {}
         robotWrap.addView(robotView, lp(120, 120));
         panel.addView(robotWrap);
@@ -1481,60 +1481,59 @@ public class MainActivity extends Activity {
         robotThinking = thinking;
         if (robotView == null) return;
         robotView.animate().cancel();
+        // Always AI brain only — no robot
+        try {
+            int brain = getResources().getIdentifier("ai_brain_think", "drawable", getPackageName());
+            if (brain != 0) robotView.setImageResource(brain);
+        } catch (Exception ignored) {}
+        robotView.clearColorFilter();
         if (thinking) {
-            // Switch to AI brain artwork while thinking
-            try {
-                int brain = getResources().getIdentifier("ai_brain_think", "drawable", getPackageName());
-                if (brain != 0) robotView.setImageResource(brain);
-            } catch (Exception ignored) {}
-            robotView.setColorFilter(null);
-            robotView.setRotation(0f);
-            robotView.setScaleX(0.85f);
-            robotView.setScaleY(0.85f);
-            robotView.setAlpha(0f);
-            // Entrance + loop
-            robotView.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(320).withEndAction(this::runThinkingMotion).start();
+            // Glow + strong pulse while thinking
+            robotView.setAlpha(1f);
+            runThinkingMotion();
         } else {
-            // Back to robot mascot
-            try {
-                int mid = getResources().getIdentifier("robot_mascot", "drawable", getPackageName());
-                if (mid != 0) robotView.setImageResource(mid);
-            } catch (Exception ignored) {}
             robotView.setRotation(0f);
             robotView.setTranslationY(0f);
             robotView.setScaleX(1f);
             robotView.setScaleY(1f);
-            robotView.setAlpha(1f);
+            robotView.setAlpha(0.92f);
+            // soft idle glow restart via startRobotIdleAnim loop
         }
     }
 
-    /** Brain thinking: pulse + gentle spin sway (nodes “alive”) */
+    /** Thinking: brain glows (brighter alpha + scale pulse + sway) */
     private void runThinkingMotion() {
         if (robotView == null || !robotThinking) return;
+        // bright glow phase
+        robotView.setColorFilter(Color.argb(60, 100, 180, 255));
         robotView.animate()
-                .scaleX(1.12f)
-                .scaleY(1.12f)
-                .rotation(6f)
+                .scaleX(1.14f)
+                .scaleY(1.14f)
+                .rotation(5f)
                 .translationY(-dp(6))
                 .alpha(1f)
-                .setDuration(550)
+                .setDuration(520)
                 .setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator())
                 .withEndAction(() -> {
                     if (robotView == null || !robotThinking) return;
+                    robotView.setColorFilter(Color.argb(30, 180, 120, 255));
                     robotView.animate()
-                            .scaleX(0.94f)
-                            .scaleY(0.94f)
-                            .rotation(-6f)
+                            .scaleX(0.96f)
+                            .scaleY(0.96f)
+                            .rotation(-5f)
                             .translationY(dp(2))
-                            .setDuration(550)
+                            .alpha(0.88f)
+                            .setDuration(520)
                             .withEndAction(() -> {
                                 if (robotView == null || !robotThinking) return;
+                                robotView.clearColorFilter();
                                 robotView.animate()
-                                        .scaleX(1.08f)
-                                        .scaleY(1.08f)
+                                        .scaleX(1.1f)
+                                        .scaleY(1.1f)
                                         .rotation(0f)
-                                        .translationY(-dp(4))
-                                        .setDuration(480)
+                                        .translationY(-dp(3))
+                                        .alpha(1f)
+                                        .setDuration(450)
                                         .withEndAction(this::runThinkingMotion)
                                         .start();
                             }).start();
@@ -1543,10 +1542,9 @@ public class MainActivity extends Activity {
 
     private void startRobotIdleAnim() {
         if (robotAnimRunnable != null) mainHandler.removeCallbacks(robotAnimRunnable);
-        // Ensure mascot image
         try {
-            int mid = getResources().getIdentifier("robot_mascot", "drawable", getPackageName());
-            if (mid != 0 && robotView != null) robotView.setImageResource(mid);
+            int brain = getResources().getIdentifier("ai_brain_think", "drawable", getPackageName());
+            if (brain != 0 && robotView != null) robotView.setImageResource(brain);
         } catch (Exception ignored) {}
         robotAnimRunnable = new Runnable() {
             int tick = 0;
@@ -1554,27 +1552,31 @@ public class MainActivity extends Activity {
                 if (robotView == null) return;
                 tick++;
                 if (!robotThinking) {
-                    // Idle breathe: soft vertical float
-                    float y = (tick % 2 == 0) ? -dp(4) : 0;
-                    robotView.animate().translationY(y).setDuration(900)
+                    // Idle: calm float, soft alpha (tidak menyala kuat)
+                    robotView.clearColorFilter();
+                    float y = (tick % 2 == 0) ? -dp(3) : 0;
+                    float sc = (tick % 2 == 0) ? 1.03f : 1f;
+                    float al = (tick % 2 == 0) ? 0.95f : 0.88f;
+                    robotView.animate()
+                            .translationY(y)
+                            .scaleX(sc)
+                            .scaleY(sc)
+                            .alpha(al)
+                            .setDuration(1100)
                             .setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator())
                             .start();
-                    // subtle scale pulse
-                    float sc = (tick % 2 == 0) ? 1.02f : 1f;
-                    robotView.animate().scaleX(sc).scaleY(sc).setDuration(900).start();
                 }
-                mainHandler.postDelayed(this, 1000);
+                mainHandler.postDelayed(this, 1200);
             }
         };
         mainHandler.post(robotAnimRunnable);
     }
 
     private void refreshRobotFrame() {
-        // Mascot is a single professional PNG; motion is Animator-based
         if (robotView == null) return;
         try {
-            int mid = getResources().getIdentifier("robot_mascot", "drawable", getPackageName());
-            if (mid != 0) robotView.setImageResource(mid);
+            int brain = getResources().getIdentifier("ai_brain_think", "drawable", getPackageName());
+            if (brain != 0) robotView.setImageResource(brain);
         } catch (Exception ignored) {}
     }
 
