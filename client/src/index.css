@@ -129,3 +129,39 @@ button { cursor: pointer; }
   .chat-heading-copy p { font-size: 8px; }
   .chat-top-actions { max-width: 62%; }
 }
+
+
+/* Neural command center visual system */
+.app-shell { background: radial-gradient(circle at 52% -10%, rgba(0, 208, 255, .2), transparent 30%), radial-gradient(circle at 88% 46%, rgba(146, 72, 255, .13), transparent 28%), radial-gradient(circle at 8% 80%, rgba(255, 91, 164, .08), transparent 25%), #070a12; }
+.topbar { background: linear-gradient(90deg, rgba(7, 10, 18, .92), rgba(10, 15, 30, .84), rgba(7, 10, 18, .92)); }
+.brand-mark { background: linear-gradient(145deg, #174a70, #28164f 58%, #441d45); border-color: rgba(73, 206, 255, .55); box-shadow: 0 0 24px rgba(0, 188, 255, .24), 0 0 34px rgba(178, 80, 255, .14); }
+.chat-panel { background: linear-gradient(120deg, rgba(5, 12, 24, .18), rgba(20, 8, 31, .13)); }
+.chat-top { background: linear-gradient(90deg, rgba(7, 13, 23, .8), rgba(19, 12, 34, .66), rgba(7, 13, 23, .8)); }
+.chat-heading-copy h1 { background: linear-gradient(90deg, #e6f8ff, #8fe7ff 45%, #d6a7ff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.chat-canvas { background: radial-gradient(circle at 50% 6%, rgba(0, 208, 255, .1), transparent 24%), radial-gradient(circle at 50% 18%, rgba(159, 78, 255, .08), transparent 38%), linear-gradient(180deg, rgba(8, 19, 32, .5), transparent 44%); }
+.brain-stage, .brain-stage.compact { height: 252px; justify-content: center; padding-left: 0; margin: 0 auto 16px; overflow: hidden; border-bottom: 1px solid rgba(71, 146, 191, .2); }
+.neural-visual { position: relative; width: min(350px, 82vw); height: 220px; display: grid; place-items: center; isolation: isolate; animation: brainFloat 5s ease-in-out infinite; }
+.brain-halo { position: absolute; border-radius: 50%; pointer-events: none; }
+.halo-one { width: 178px; height: 178px; background: radial-gradient(circle, rgba(0, 214, 255, .22), rgba(72, 117, 255, .1) 38%, transparent 70%); filter: blur(4px); animation: haloPulse 3.4s ease-in-out infinite; }
+.halo-two { width: 232px; height: 126px; background: radial-gradient(ellipse, rgba(191, 74, 255, .19), rgba(255, 82, 170, .08) 42%, transparent 72%); filter: blur(11px); transform: rotate(-12deg); animation: haloPulse 4.2s ease-in-out infinite reverse; }
+.brain-layer, .brain-core { position: absolute; display: grid; place-items: center; width: 100%; height: 100%; transform-origin: center; }
+.brain-layer svg, .brain-core svg { overflow: visible; }
+.brain-core { color: #eafcff; filter: drop-shadow(0 0 8px rgba(77, 236, 255, .95)) drop-shadow(0 0 22px rgba(82, 133, 255, .72)); animation: corePulse 2.3s ease-in-out infinite; z-index: 4; }
+.layer-cyan { color: #29dcff; opacity: .92; filter: drop-shadow(0 0 13px rgba(0, 205, 255, .92)); animation: brainPulse 3.1s ease-in-out infinite; z-index: 3; }
+.layer-violet { color: #a36bff; opacity: .55; filter: drop-shadow(0 0 16px rgba(157, 89, 255, .88)); transform: translate(9px, -5px) scale(1.07); animation: brainDrift 4.6s ease-in-out infinite; z-index: 1; }
+.layer-coral { color: #ff76bc; opacity: .5; filter: drop-shadow(0 0 16px rgba(255, 91, 177, .74)); transform: translate(-10px, 6px) scale(.98); animation: brainDrift 3.8s ease-in-out infinite reverse; z-index: 2; }
+.neural-node { position: absolute; width: 7px; height: 7px; border-radius: 50%; z-index: 6; background: #effdff; box-shadow: 0 0 0 3px rgba(64, 219, 255, .17), 0 0 13px 4px currentColor; animation: nodeBlink 1.9s ease-in-out infinite; }
+.node-a { top: 25%; left: 34%; color: #35e6ff; }.node-b { top: 34%; right: 28%; color: #d17aff; animation-delay: .35s; }.node-c { bottom: 27%; left: 28%; color: #ff76b9; animation-delay: .7s; }.node-d { bottom: 21%; right: 37%; color: #69ffbb; animation-delay: 1.05s; }.node-e { top: 47%; right: 20%; color: #ffd36b; animation-delay: 1.35s; }
+.signal { position: absolute; height: 2px; border-radius: 999px; transform-origin: left center; opacity: .8; z-index: 5; background: linear-gradient(90deg, transparent, currentColor, transparent); animation: signalTravel 2.8s ease-in-out infinite; }
+.signal-a { width: 88px; top: 39%; left: 31%; color: #31dbff; transform: rotate(-24deg); }.signal-b { width: 70px; top: 59%; left: 40%; color: #d477ff; transform: rotate(20deg); animation-delay: .8s; }.signal-c { width: 92px; top: 48%; right: 25%; color: #ff78b6; transform: rotate(-48deg); animation-delay: 1.4s; }
+.brain-stage.thinking .neural-visual { animation-duration: 1.15s; }.brain-stage.thinking .brain-core { filter: drop-shadow(0 0 13px #fff) drop-shadow(0 0 35px #30dfff) drop-shadow(0 0 54px #ae5dff); animation-duration: .65s; }.brain-stage.thinking .neural-node { animation-duration: .65s; }
+.brain-label { bottom: 9px; color: #9bb8ff; text-shadow: 0 0 12px rgba(117, 149, 255, .62); }
+.brain-stage.compact .brain-label { left: auto; bottom: 9px; }
+@keyframes brainFloat { 0%, 100% { transform: translateY(2px) rotate(-1deg); } 50% { transform: translateY(-8px) rotate(1deg); } }
+@keyframes haloPulse { 0%, 100% { opacity: .62; transform: scale(.92) rotate(-12deg); } 50% { opacity: 1; transform: scale(1.08) rotate(8deg); } }
+@keyframes brainPulse { 0%, 100% { transform: scale(.96); opacity: .65; } 50% { transform: scale(1.05); opacity: 1; } }
+@keyframes corePulse { 0%, 100% { transform: scale(.98); } 50% { transform: scale(1.045); } }
+@keyframes brainDrift { 0%, 100% { margin-left: 0; margin-top: 0; } 50% { margin-left: 8px; margin-top: -5px; } }
+@keyframes nodeBlink { 0%, 100% { opacity: .45; transform: scale(.72); } 50% { opacity: 1; transform: scale(1.35); } }
+@keyframes signalTravel { 0%, 100% { opacity: .1; clip-path: inset(0 100% 0 0); } 45%, 65% { opacity: 1; clip-path: inset(0 0 0 0); } }
+@media (max-width: 720px) { .brain-stage, .brain-stage.compact { height: 214px; }.neural-visual { height: 188px; width: min(330px, 96vw); }.brain-label, .brain-stage.compact .brain-label { bottom: 5px; font-size: 7px; }.brain-core svg { width: 126px; height: 126px; }.layer-cyan svg { width: 138px; height: 138px; }.layer-violet svg { width: 154px; height: 154px; }.layer-coral svg { width: 146px; height: 146px; } }
