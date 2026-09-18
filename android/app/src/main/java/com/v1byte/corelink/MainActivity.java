@@ -38,6 +38,7 @@ import android.widget.Toast;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -2116,6 +2117,19 @@ public class MainActivity extends Activity {
     }
 
     private String request(String url, String body) throws Exception {
+        Exception last = null;
+        for (int attempt = 0; attempt < 3; attempt++) {
+            try {
+                return requestOnce(url, body);
+            } catch (Exception e) {
+                last = e;
+                if (attempt < 2) Thread.sleep(350L * (attempt + 1));
+            }
+        }
+        throw last == null ? new IOException("Koneksi Bridge gagal") : last;
+    }
+
+    private String requestOnce(String url, String body) throws Exception {
         HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
         c.setConnectTimeout(8000);
         c.setReadTimeout(120000);
@@ -2128,13 +2142,18 @@ public class MainActivity extends Activity {
             }
         }
         int code = c.getResponseCode();
-        BufferedReader r = new BufferedReader(new InputStreamReader(
-                code < 400 ? c.getInputStream() : c.getErrorStream()));
-        StringBuilder out = new StringBuilder();
-        String line;
-        while ((line = r.readLine()) != null) out.append(line);
-        if (code >= 400) throw new Exception("HTTP " + code);
-        return out.toString();
+        try {
+            InputStream stream = code < 400 ? c.getInputStream() : c.getErrorStream();
+            if (stream == null) throw new IOException("Bridge tidak mengirim respons");
+            BufferedReader r = new BufferedReader(new InputStreamReader(stream));
+            StringBuilder out = new StringBuilder();
+            String line;
+            while ((line = r.readLine()) != null) out.append(line);
+            if (code >= 400) throw new Exception("HTTP " + code);
+            return out.toString();
+        } finally {
+            c.disconnect();
+        }
     }
 
     @Override
