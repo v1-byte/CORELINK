@@ -107,6 +107,7 @@ public class MainActivity extends Activity {
     private TextView remoteChatLog;
     private android.animation.ObjectAnimator sendGlowAnimator;
     private ImageView robotView;
+    private ImageView robotGlowView;
     private LinearLayout robotWrap;
     private boolean robotThinking = false;
     private boolean robotBlinkClosed = false;
@@ -589,14 +590,27 @@ public class MainActivity extends Activity {
         robotWrap.setOrientation(LinearLayout.VERTICAL);
         robotWrap.setGravity(Gravity.CENTER_HORIZONTAL);
         robotWrap.setPadding(0, dp(6), 0, dp(2));
+        // Brain static — only circuit lines glow (overlay)
+        FrameLayout brainStage = new FrameLayout(this);
         robotView = new ImageView(this);
         robotView.setScaleType(ImageView.ScaleType.FIT_CENTER);
         robotView.setAdjustViewBounds(true);
+        robotGlowView = new ImageView(this);
+        robotGlowView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        robotGlowView.setAdjustViewBounds(true);
+        robotGlowView.setAlpha(0f);
         try {
-            int brain = getResources().getIdentifier("ai_brain_think", "drawable", getPackageName());
-            if (brain != 0) robotView.setImageResource(brain);
+            int idle = getResources().getIdentifier("ai_brain_idle", "drawable", getPackageName());
+            int glow = getResources().getIdentifier("ai_brain_glow", "drawable", getPackageName());
+            if (idle == 0) idle = getResources().getIdentifier("ai_brain_think", "drawable", getPackageName());
+            if (glow == 0) glow = idle;
+            if (idle != 0) robotView.setImageResource(idle);
+            if (glow != 0) robotGlowView.setImageResource(glow);
         } catch (Exception ignored) {}
-        robotWrap.addView(robotView, lp(120, 120));
+        FrameLayout.LayoutParams flp = new FrameLayout.LayoutParams(dp(120), dp(120), Gravity.CENTER);
+        brainStage.addView(robotView, flp);
+        brainStage.addView(robotGlowView, flp);
+        robotWrap.addView(brainStage, new LinearLayout.LayoutParams(dp(120), dp(120)));
         panel.addView(robotWrap);
         startRobotIdleAnim();
 
@@ -1467,117 +1481,81 @@ public class MainActivity extends Activity {
 
     private void updateRobotSizeForChat() {
         if (robotView == null || robotWrap == null) return;
-        // Keep tiny during active conversation so chat stays readable
         int s = messageCount > 0 ? dp(64) : dp(120);
-        LinearLayout.LayoutParams rlp = (LinearLayout.LayoutParams) robotView.getLayoutParams();
-        if (rlp == null) rlp = lp(s, s);
-        else { rlp.width = s; rlp.height = s; }
-        robotView.setLayoutParams(rlp);
+        if (robotView.getParent() instanceof FrameLayout) {
+            FrameLayout stage = (FrameLayout) robotView.getParent();
+            LinearLayout.LayoutParams slp = (LinearLayout.LayoutParams) stage.getLayoutParams();
+            if (slp != null) { slp.width = s; slp.height = s; stage.setLayoutParams(slp); }
+            FrameLayout.LayoutParams flp = new FrameLayout.LayoutParams(s, s, Gravity.CENTER);
+            robotView.setLayoutParams(flp);
+            if (robotGlowView != null) robotGlowView.setLayoutParams(flp);
+        }
         robotWrap.setPadding(0, messageCount > 0 ? dp(2) : dp(8), 0, dp(2));
-        refreshRobotFrame();
     }
 
     private void setRobotThinking(boolean thinking) {
         robotThinking = thinking;
         if (robotView == null) return;
         robotView.animate().cancel();
-        // Always AI brain only — no robot
-        try {
-            int brain = getResources().getIdentifier("ai_brain_think", "drawable", getPackageName());
-            if (brain != 0) robotView.setImageResource(brain);
-        } catch (Exception ignored) {}
-        robotView.clearColorFilter();
+        if (robotGlowView != null) robotGlowView.animate().cancel();
+        // Brain stays STILL — only circuit-line glow changes
+        robotView.setRotation(0f);
+        robotView.setTranslationY(0f);
+        robotView.setScaleX(1f);
+        robotView.setScaleY(1f);
+        robotView.setAlpha(1f);
+        if (robotGlowView != null) {
+            robotGlowView.setRotation(0f);
+            robotGlowView.setTranslationY(0f);
+            robotGlowView.setScaleX(1f);
+            robotGlowView.setScaleY(1f);
+        }
         if (thinking) {
-            // Glow + strong pulse while thinking
-            robotView.setAlpha(1f);
             runThinkingMotion();
-        } else {
-            robotView.setRotation(0f);
-            robotView.setTranslationY(0f);
-            robotView.setScaleX(1f);
-            robotView.setScaleY(1f);
-            robotView.setAlpha(0.92f);
-            // soft idle glow restart via startRobotIdleAnim loop
+        } else if (robotGlowView != null) {
+            robotGlowView.animate().alpha(0.15f).setDuration(400).start();
         }
     }
 
-    /** Thinking: brain glows (brighter alpha + scale pulse + sway) */
+    /** Thinking: only lines glow (overlay alpha pulse), brain body does not move */
     private void runThinkingMotion() {
-        if (robotView == null || !robotThinking) return;
-        // bright glow phase
-        robotView.setColorFilter(Color.argb(60, 100, 180, 255));
-        robotView.animate()
-                .scaleX(1.14f)
-                .scaleY(1.14f)
-                .rotation(5f)
-                .translationY(-dp(6))
+        if (robotGlowView == null || !robotThinking) return;
+        robotGlowView.animate()
                 .alpha(1f)
-                .setDuration(520)
+                .setDuration(480)
                 .setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator())
                 .withEndAction(() -> {
-                    if (robotView == null || !robotThinking) return;
-                    robotView.setColorFilter(Color.argb(30, 180, 120, 255));
-                    robotView.animate()
-                            .scaleX(0.96f)
-                            .scaleY(0.96f)
-                            .rotation(-5f)
-                            .translationY(dp(2))
-                            .alpha(0.88f)
-                            .setDuration(520)
-                            .withEndAction(() -> {
-                                if (robotView == null || !robotThinking) return;
-                                robotView.clearColorFilter();
-                                robotView.animate()
-                                        .scaleX(1.1f)
-                                        .scaleY(1.1f)
-                                        .rotation(0f)
-                                        .translationY(-dp(3))
-                                        .alpha(1f)
-                                        .setDuration(450)
-                                        .withEndAction(this::runThinkingMotion)
-                                        .start();
-                            }).start();
+                    if (robotGlowView == null || !robotThinking) return;
+                    robotGlowView.animate()
+                            .alpha(0.25f)
+                            .setDuration(480)
+                            .withEndAction(this::runThinkingMotion)
+                            .start();
                 }).start();
     }
 
     private void startRobotIdleAnim() {
         if (robotAnimRunnable != null) mainHandler.removeCallbacks(robotAnimRunnable);
-        try {
-            int brain = getResources().getIdentifier("ai_brain_think", "drawable", getPackageName());
-            if (brain != 0 && robotView != null) robotView.setImageResource(brain);
-        } catch (Exception ignored) {}
+        // Idle: brain fully still; circuit lines soft glow pulse only
         robotAnimRunnable = new Runnable() {
             int tick = 0;
             @Override public void run() {
-                if (robotView == null) return;
+                if (robotGlowView == null) return;
                 tick++;
                 if (!robotThinking) {
-                    // Idle: calm float, soft alpha (tidak menyala kuat)
-                    robotView.clearColorFilter();
-                    float y = (tick % 2 == 0) ? -dp(3) : 0;
-                    float sc = (tick % 2 == 0) ? 1.03f : 1f;
-                    float al = (tick % 2 == 0) ? 0.95f : 0.88f;
-                    robotView.animate()
-                            .translationY(y)
-                            .scaleX(sc)
-                            .scaleY(sc)
-                            .alpha(al)
-                            .setDuration(1100)
+                    float al = (tick % 2 == 0) ? 0.35f : 0.08f;
+                    robotGlowView.animate().alpha(al).setDuration(1400)
                             .setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator())
                             .start();
                 }
-                mainHandler.postDelayed(this, 1200);
+                mainHandler.postDelayed(this, 1500);
             }
         };
         mainHandler.post(robotAnimRunnable);
     }
 
     private void refreshRobotFrame() {
-        if (robotView == null) return;
-        try {
-            int brain = getResources().getIdentifier("ai_brain_think", "drawable", getPackageName());
-            if (brain != 0) robotView.setImageResource(brain);
-        } catch (Exception ignored) {}
+        // static brain + glow overlay — no frame swap needed
     }
 
     /** Simple mascot: idle arms down + blink; thinking hand on head */
