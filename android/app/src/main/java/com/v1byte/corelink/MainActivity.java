@@ -1482,10 +1482,24 @@ public class MainActivity extends Activity {
         if (robotView == null) return;
         robotView.animate().cancel();
         if (thinking) {
-            // Professional thinking: float + slight tilt + glow pulse
+            // Switch to AI brain artwork while thinking
+            try {
+                int brain = getResources().getIdentifier("ai_brain_think", "drawable", getPackageName());
+                if (brain != 0) robotView.setImageResource(brain);
+            } catch (Exception ignored) {}
             robotView.setColorFilter(null);
-            runThinkingMotion();
+            robotView.setRotation(0f);
+            robotView.setScaleX(0.85f);
+            robotView.setScaleY(0.85f);
+            robotView.setAlpha(0f);
+            // Entrance + loop
+            robotView.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(320).withEndAction(this::runThinkingMotion).start();
         } else {
+            // Back to robot mascot
+            try {
+                int mid = getResources().getIdentifier("robot_mascot", "drawable", getPackageName());
+                if (mid != 0) robotView.setImageResource(mid);
+            } catch (Exception ignored) {}
             robotView.setRotation(0f);
             robotView.setTranslationY(0f);
             robotView.setScaleX(1f);
@@ -1494,27 +1508,36 @@ public class MainActivity extends Activity {
         }
     }
 
+    /** Brain thinking: pulse + gentle spin sway (nodes “alive”) */
     private void runThinkingMotion() {
         if (robotView == null || !robotThinking) return;
         robotView.animate()
-                .translationY(-dp(8))
-                .rotation(-3f)
-                .scaleX(1.05f)
-                .scaleY(1.05f)
-                .alpha(0.92f)
-                .setDuration(700)
+                .scaleX(1.12f)
+                .scaleY(1.12f)
+                .rotation(6f)
+                .translationY(-dp(6))
+                .alpha(1f)
+                .setDuration(550)
                 .setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator())
                 .withEndAction(() -> {
                     if (robotView == null || !robotThinking) return;
                     robotView.animate()
-                            .translationY(0f)
-                            .rotation(3f)
-                            .scaleX(1f)
-                            .scaleY(1f)
-                            .alpha(1f)
-                            .setDuration(700)
-                            .withEndAction(this::runThinkingMotion)
-                            .start();
+                            .scaleX(0.94f)
+                            .scaleY(0.94f)
+                            .rotation(-6f)
+                            .translationY(dp(2))
+                            .setDuration(550)
+                            .withEndAction(() -> {
+                                if (robotView == null || !robotThinking) return;
+                                robotView.animate()
+                                        .scaleX(1.08f)
+                                        .scaleY(1.08f)
+                                        .rotation(0f)
+                                        .translationY(-dp(4))
+                                        .setDuration(480)
+                                        .withEndAction(this::runThinkingMotion)
+                                        .start();
+                            }).start();
                 }).start();
     }
 
