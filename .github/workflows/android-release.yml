@@ -6,7 +6,7 @@ on:
       version:
         description: 'Version tag (e.g. v1.5.1)'
         required: true
-        default: 'v1.7.9'
+        default: 'v1.8.0'
   push:
     tags:
       - 'v*'
@@ -90,9 +90,9 @@ jobs:
               CORELINK-aligned.apk
             $HOME/android-sdk/build-tools/35.0.0/apksigner verify CORELINK-signed.apk
           fi
-          cp CORELINK-signed.apk CORELINK-1.7.9.apk
-          ls -lh CORELINK-1.7.9.apk
-          echo "path=CORELINK-1.7.9.apk" >> $GITHUB_OUTPUT
+          cp CORELINK-signed.apk CORELINK-1.8.0.apk
+          ls -lh CORELINK-1.8.0.apk
+          echo "path=CORELINK-1.8.0.apk" >> $GITHUB_OUTPUT
 
       - name: Version
         id: ver
@@ -114,7 +114,7 @@ jobs:
             **APK ini sudah di-sign** — bisa diinstall di Android.
 
             ### Install
-            1. Download **CORELINK-1.7.9.apk**
+            1. Download **CORELINK-1.8.0.apk**
             2. Settings → izinkan install dari browser/file manager
             3. Buka file APK → Install
             4. Jika sudah terpasang versi lama: uninstall dulu **atau** izinkan update
@@ -126,7 +126,7 @@ jobs:
             - MyBase + A-Connect (UI)
 
             > Jika install gagal: uninstall APK lama dulu, lalu install ulang.
-          files: CORELINK-1.7.9.apk
+          files: CORELINK-1.8.0.apk
           draft: false
           prerelease: false
         env:

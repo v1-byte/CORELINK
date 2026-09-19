@@ -116,7 +116,8 @@ public class MainActivity extends Activity {
     private int messageCount = 0;
 
     // State
-    private String bridge = "http://127.0.0.1:8787";
+    private String bridge = "";
+    private String connectionMode = "workers"; // workers | local
     private String systemPrompt = "";
     private float temperature = 0.85f;
     private String attachmentName = "", attachmentMime = "", attachmentBase64 = "";
@@ -125,45 +126,42 @@ public class MainActivity extends Activity {
     private Runnable thinkingAnimator;
     private static final int PICK_FILE = 401;
 
-    // Tutorial simpel
+    // Setup Workers (no Termux)
     private final String setupStep1 =
-            "pkg update -y\n" +
-            "pkg install -y nodejs git curl ollama\n" +
-            "git clone https://github.com/v1-byte/CORELINK.git\n" +
-            "cd ~/CORELINK/bridge\n" +
-            "cp -n config.template .env\n" +
-            "bash start-termux.sh";
+            "npm i -g wrangler\n" +
+            "cd CORELINK/workers\n" +
+            "wrangler login\n" +
+            "wrangler secret put LLM_API_KEY\n" +
+            "wrangler deploy";
 
     private final String setupStep2 =
-            "ollama pull qwen2.5:0.5b\n" +
-            "ollama serve";
+            "Salin URL hasil deploy, contoh:\n" +
+            "https://corelink-api.<akun>.workers.dev";
 
-    private final String setupStep3 = "http://127.0.0.1:8787";
+    private final String setupStep3 = "https://corelink-api.YOUR_SUBDOMAIN.workers.dev";
 
     private final String setupDaily =
-            "cd ~/CORELINK/bridge && bash start-termux.sh";
+            "wrangler deploy";
 
     private final String setupAllInOne =
-            "# A. PERTAMA KALI\n" +
-            "pkg update -y && pkg install -y nodejs git curl ollama\n" +
-            "git clone https://github.com/v1-byte/CORELINK.git\n" +
-            "cd ~/CORELINK/bridge && cp -n config.template .env && bash start-termux.sh\n" +
+            "# MODE WORKERS — tanpa Termux / Ollama di HP\n" +
+            "1. npm i -g wrangler\n" +
+            "2. cd CORELINK/workers && wrangler login\n" +
+            "3. wrangler secret put LLM_API_KEY\n" +
+            "4. wrangler deploy\n" +
+            "5. APK → LINK → tempel URL workers.dev → CONNECT → CHAT\n" +
             "\n" +
-            "# B. SETIAP HARI — sesi 1\n" +
-            "cd ~/CORELINK/bridge && bash start-termux.sh\n" +
-            "\n" +
-            "# C. SETIAP HARI — sesi 2 (tab baru)\n" +
-            "ollama serve\n" +
-            "\n" +
-            "# D. APP: LINK → http://127.0.0.1:8787 → CONNECT → CHAT\n" +
-            "# EADDRINUSE 8787 = Bridge sudah OK\n" +
-            "# Model ringan: ollama pull qwen2.5:0.5b";
+            "# Opsional LLM_BASE_URL (Groq/OpenRouter):\n" +
+            "wrangler secret put LLM_BASE_URL\n";
+
 
     @Override
     public void onCreate(Bundle state) {
         super.onCreate(state);
         prefs = getSharedPreferences("corelink", MODE_PRIVATE);
-        bridge = prefs.getString("bridge", "http://127.0.0.1:8787");
+        connectionMode = prefs.getString("mode", "workers");
+        bridge = prefs.getString("bridge", "");
+        if (bridge.isEmpty() && "local".equals(connectionMode)) bridge = "http://127.0.0.1:8787";
         systemPrompt = prefs.getString("system_prompt", DEFAULT_SMART_PROMPT);
         temperature = prefs.getFloat("temperature", 0.85f);
         Window w = getWindow();
@@ -704,12 +702,12 @@ public class MainActivity extends Activity {
         panel.setPadding(dp(16), dp(16), dp(16), dp(24));
         panel.setBackgroundColor(BG);
 
-        TextView heading = makeText("BRIDGE CONNECTION", 12, BLUE);
+        TextView heading = makeText("WORKERS / LINK", 12, BLUE);
         heading.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
         heading.setLetterSpacing(0.1f);
         panel.addView(heading);
 
-        TextView desc = makeText("Connect to CORELINK Bridge running on Termux (port 8787).", 12, MUTED);
+        TextView desc = makeText("Mode WORKERS (default): tempel URL Cloudflare Workers.\nTanpa Termux / Ollama di HP.", 12, MUTED);
         desc.setPadding(0, dp(6), 0, dp(14));
         panel.addView(desc);
 
@@ -724,7 +722,8 @@ public class MainActivity extends Activity {
 
         endpointInput = new EditText(this);
         endpointInput.setSingleLine(true);
-        endpointInput.setText(bridge);
+        endpointInput.setHint("https://corelink-api.xxx.workers.dev");
+        endpointInput.setText(bridge == null ? "" : bridge);
         endpointInput.setTextColor(TEXT);
         endpointInput.setTextSize(13);
         endpointInput.setBackground(makeBg(Color.rgb(8, 15, 24), BORDER, 10));
@@ -818,7 +817,7 @@ public class MainActivity extends Activity {
         panel.addView(refreshConn, rlp);
         refreshConn.setOnClickListener(v -> refreshConnectors());
 
-        TextView desc = makeText("Tools are configured via Bridge .env on Termux. Tokens stay on device.", 12, MUTED);
+        TextView desc = makeText("Connector cloud via Workers. Token LLM di Cloudflare secrets.", 12, MUTED);
         desc.setPadding(0, dp(6), 0, dp(14));
         panel.addView(desc);
 
@@ -861,7 +860,7 @@ public class MainActivity extends Activity {
             row.addView(arrow);
 
             row.setOnClickListener(v ->
-                    Toast.makeText(this, c[0] + " is configured in Termux .env", Toast.LENGTH_SHORT).show());
+                    Toast.makeText(this, c[0] + " — atur di Workers / secrets", Toast.LENGTH_SHORT).show());
             panel.addView(row);
         }
 
@@ -879,7 +878,7 @@ public class MainActivity extends Activity {
     private void copyText(String label, String value) {
         ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
         cm.setPrimaryClip(ClipData.newPlainText(label, value));
-        Toast.makeText(this, "Disalin. Tempel di Termux.", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "Disalin. Tempel di terminal / LINK.", Toast.LENGTH_SHORT).show();
     }
 
     private Button setupCopyBtn(String title, String payload) {
@@ -906,22 +905,22 @@ public class MainActivity extends Activity {
         panel.setPadding(dp(16), dp(16), dp(16), dp(28));
         panel.setBackgroundColor(BG);
 
-        TextView heading = makeText("SETUP CEPAT", 13, BLUE);
+        TextView heading = makeText("SETUP · WORKERS", 13, BLUE);
         heading.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
         heading.setLetterSpacing(0.08f);
         panel.addView(heading);
 
         TextView desc = makeText(
-                "Tinggal SALIN → tempel Termux → Enter. 3 langkah.",
+                "Mode WORKERS: deploy di PC → URL di tab LINK. Tanpa Termux.",
                 12, MUTED);
         desc.setPadding(0, dp(6), 0, dp(12));
         panel.addView(desc);
 
         // STEP 1
-        TextView s1 = makeText("A. PERTAMA KALI (sekali saja)", 11, GREEN);
+        TextView s1 = makeText("A. DEPLOY WORKERS (PC/laptop)", 11, GREEN);
         s1.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
         panel.addView(s1);
-        TextView s1d = makeText("Install semua + Bridge. Sudah clone? Pakai tombol B saja.", 11, MUTED);
+        TextView s1d = makeText("Deploy Cloudflare Workers. Dapat URL *.workers.dev", 11, MUTED);
         s1d.setPadding(0, dp(4), 0, dp(6));
         panel.addView(s1d);
 
@@ -931,23 +930,23 @@ public class MainActivity extends Activity {
         box1.setBackground(makeBg(CARD, BORDER, 12));
         box1.setPadding(dp(12), dp(12), dp(12), dp(12));
         panel.addView(box1);
-        panel.addView(setupCopyBtn("SALIN — PERTAMA KALI", setupStep1));
+        panel.addView(setupCopyBtn("SALIN — DEPLOY WORKERS", setupStep1));
 
-        TextView s1b = makeText("B. SETIAP HARI — Bridge saja", 11, GREEN);
+        TextView s1b = makeText("B. UPDATE WORKERS", 11, GREEN);
         s1b.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
         s1b.setPadding(0, dp(16), 0, 0);
         panel.addView(s1b);
-        TextView s1bd = makeText("EADDRINUSE 8787 = sudah jalan (OK).", 11, MUTED);
+        TextView s1bd = makeText("Redeploy jika kode Workers berubah.", 11, MUTED);
         s1bd.setPadding(0, dp(4), 0, dp(6));
         panel.addView(s1bd);
-        panel.addView(setupCopyBtn("SALIN — BRIDGE HARIAN", setupDaily));
+        panel.addView(setupCopyBtn("SALIN — REDEPLOY", setupDaily));
 
         // STEP 2
-        TextView s2 = makeText("C. OLLAMA (tab Termux baru)", 11, GREEN);
+        TextView s2 = makeText("C. URL WORKERS", 11, GREEN);
         s2.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
         s2.setPadding(0, dp(18), 0, 0);
         panel.addView(s2);
-        TextView s2d = makeText("Jangan tutup Bridge. Model ringan: ollama pull qwen2.5:0.5b", 11, MUTED);
+        TextView s2d = makeText("URL workers.dev + LLM_API_KEY wajib.", 11, MUTED);
         s2d.setPadding(0, dp(4), 0, dp(6));
         panel.addView(s2d);
 
@@ -957,7 +956,7 @@ public class MainActivity extends Activity {
         box2.setBackground(makeBg(CARD, BORDER, 12));
         box2.setPadding(dp(12), dp(12), dp(12), dp(12));
         panel.addView(box2);
-        panel.addView(setupCopyBtn("SALIN — OLLAMA", setupStep2));
+        panel.addView(setupCopyBtn("SALIN — CONTOH URL", setupStep2));
 
         // STEP 3
         TextView s3 = makeText("D. DI APP", 11, GREEN);
@@ -966,7 +965,7 @@ public class MainActivity extends Activity {
         panel.addView(s3);
         TextView s3d = makeText(
                 "1. Buka tab LINK\n" +
-                "2. Endpoint harus: http://127.0.0.1:8787\n" +
+                "2. Endpoint: https://....workers.dev\n" +
                 "3. Tekan CONNECT\n" +
                 "4. Kembali ke CHAT → kirim pesan\n\n" +
                 "Jangan isi 11434 di app (itu Ollama, bukan Bridge).",
@@ -983,7 +982,7 @@ public class MainActivity extends Activity {
                 "  cd ~/CORELINK/bridge && bash start-termux.sh\n" +
                 "• Token GitHub di .env opsional (boleh kosong)\n" +
                 "• Bridge & Ollama harus tetap hidup saat chat\n" +
-                "• Gagal connect? Cek Termux masih jalan + endpoint 8787",
+                "• Gagal connect? Cek URL Workers + secret LLM_API_KEY",
                 11, MUTED);
         tip.setTypeface(Typeface.MONOSPACE);
         tip.setPadding(0, dp(18), 0, 0);
@@ -1994,7 +1993,9 @@ public class MainActivity extends Activity {
     }
 
     private void connectBridge() {
-        bridge = endpointInput.getText().toString().trim().replaceAll("/$", ""); prefs.edit().putString("bridge", bridge).apply();
+        bridge = endpointInput.getText().toString().trim().replaceAll("/$", "");
+        connectionMode = bridge.contains("127.0.0.1") || bridge.contains("localhost") ? "local" : "workers";
+        prefs.edit().putString("bridge", bridge).putString("mode", connectionMode).apply();
         bridgeStatus.setText("  Connecting…");
         bridgeStatus.setTextColor(AMBER);
         appendProcess("Mulai koneksi Bridge → " + bridge);
@@ -2024,7 +2025,7 @@ public class MainActivity extends Activity {
                     addMessage("assistant", "Bridge connected. Ollama siap menerima pesan.");
                     setActiveTab(tabChat);
                     showPanel(chatPanel);
-                    Toast.makeText(this, "Bridge connected · " + names.size() + " model(s)", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "Workers connected · " + names.size() + " model(s)", Toast.LENGTH_SHORT).show();
                     appendProcess("Terhubung · " + names.size() + " model: " + names);
                     appendProcess("Siap chat");
                 });
@@ -2032,7 +2033,7 @@ public class MainActivity extends Activity {
                 runOnUiThread(() -> {
                     bridgeStatus.setText("  Connection failed");
                     bridgeStatus.setTextColor(RED);
-                    Toast.makeText(this, "Bridge gagal. Jalankan start-termux.sh di Termux.", Toast.LENGTH_LONG).show();
+                    Toast.makeText(this, "Gagal connect. Cek URL Workers + LLM_API_KEY.", Toast.LENGTH_LONG).show();
                     appendProcess("GAGAL: " + (e.getMessage() == null ? "error" : e.getMessage()));
                 });
             }

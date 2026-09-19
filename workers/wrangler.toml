@@ -1,0 +1,7 @@
+name = "corelink-api"
+main = "src/index.js"
+compatibility_date = "2024-09-01"
+
+[vars]
+# Optional: override model name
+OLLAMA_MODEL = "gpt-4o-mini"
