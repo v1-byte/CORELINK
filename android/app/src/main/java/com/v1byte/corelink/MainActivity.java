@@ -1,6 +1,7 @@
 package com.v1byte.corelink;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
@@ -49,6 +50,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 /**
  * CORELINK — Professional native chat UI
@@ -114,6 +117,8 @@ public class MainActivity extends Activity {
     private boolean robotBlinkClosed = false;
     private Runnable robotAnimRunnable;
     private int messageCount = 0;
+    private String currentChatId = "";
+    private boolean restoringHistory = false;
 
     // State
     private static final String CLOUD_WORKER = "https://corelink-ai.corelink-ai.workers.dev";
@@ -131,6 +136,7 @@ public class MainActivity extends Activity {
         super.onCreate(state);
         prefs = getSharedPreferences("corelink", MODE_PRIVATE);
         bridge = prefs.getString("bridge", CLOUD_WORKER);
+        currentChatId = prefs.getString("current_chat_id", "");
         systemPrompt = prefs.getString("system_prompt", DEFAULT_SMART_PROMPT);
         temperature = prefs.getFloat("temperature", 0.85f);
         Window w = getWindow();
@@ -142,6 +148,7 @@ public class MainActivity extends Activity {
         }
         w.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         buildUI();
+        restoreLatestChat();
     }
 
     private static final String DEFAULT_SMART_PROMPT =
@@ -299,6 +306,138 @@ public class MainActivity extends Activity {
         smoothScrollToBottom();
         messageCount++;
         updateRobotSizeForChat();
+        if (!restoringHistory) persistChatMessage(role, text);
+    }
+
+    private JSONArray readChatHistory() {
+        try {
+            return new JSONArray(prefs.getString("chat_history", "[]"));
+        } catch (Exception ignored) {
+            return new JSONArray();
+        }
+    }
+
+    private void writeChatHistory(JSONArray history) {
+        prefs.edit().putString("chat_history", history.toString()).apply();
+    }
+
+    private JSONObject currentSession(JSONArray history) throws Exception {
+        for (int i = 0; i < history.length(); i++) {
+            JSONObject session = history.getJSONObject(i);
+            if (currentChatId.equals(session.optString("id"))) return session;
+        }
+        currentChatId = String.valueOf(System.currentTimeMillis());
+        JSONObject session = new JSONObject();
+        session.put("id", currentChatId);
+        session.put("title", "Chat baru");
+        session.put("messages", new JSONArray());
+        history.put(session);
+        prefs.edit().putString("current_chat_id", currentChatId).apply();
+        return session;
+    }
+
+    private void persistChatMessage(String role, String text) {
+        try {
+            JSONArray history = readChatHistory();
+            JSONObject session = currentSession(history);
+            JSONArray messages = session.optJSONArray("messages");
+            if (messages == null) {
+                messages = new JSONArray();
+                session.put("messages", messages);
+            }
+            JSONObject message = new JSONObject();
+            message.put("role", role);
+            message.put("text", text);
+            messages.put(message);
+            if ("user".equals(role) && "Chat baru".equals(session.optString("title"))) {
+                String title = text.replaceAll("\\s+", " ").trim();
+                if (title.length() > 36) title = title.substring(0, 36) + "…";
+                session.put("title", title.isEmpty() ? "Chat baru" : title);
+            }
+            writeChatHistory(history);
+        } catch (Exception ignored) {}
+    }
+
+    private void restoreLatestChat() {
+        try {
+            JSONArray history = readChatHistory();
+            JSONObject selected = null;
+            for (int i = 0; i < history.length(); i++) {
+                JSONObject session = history.getJSONObject(i);
+                if (currentChatId.equals(session.optString("id"))) selected = session;
+            }
+            if (selected == null && history.length() > 0) selected = history.getJSONObject(history.length() - 1);
+            if (selected != null) loadChatSession(selected);
+        } catch (Exception ignored) {}
+    }
+
+    private void loadChatSession(JSONObject session) throws Exception {
+        currentChatId = session.optString("id", String.valueOf(System.currentTimeMillis()));
+        prefs.edit().putString("current_chat_id", currentChatId).apply();
+        messagesContainer.removeAllViews();
+        messageCount = 0;
+        restoringHistory = true;
+        JSONArray messages = session.optJSONArray("messages");
+        if (messages != null) {
+            for (int i = 0; i < messages.length(); i++) {
+                JSONObject message = messages.getJSONObject(i);
+                addMessage(message.optString("role", "assistant"), message.optString("text", ""));
+            }
+        }
+        restoringHistory = false;
+        updateRobotSizeForChat();
+        smoothScrollToBottom();
+    }
+
+    private void startNewChat() {
+        try {
+            JSONArray history = readChatHistory();
+            currentChatId = String.valueOf(System.currentTimeMillis());
+            JSONObject session = new JSONObject();
+            session.put("id", currentChatId);
+            session.put("title", "Chat baru");
+            session.put("messages", new JSONArray());
+            history.put(session);
+            writeChatHistory(history);
+            prefs.edit().putString("current_chat_id", currentChatId).apply();
+            messagesContainer.removeAllViews();
+            messageCount = 0;
+            updateRobotSizeForChat();
+            setActiveTab(tabChat);
+            showPanel(chatPanel);
+            promptInput.setText("");
+            Toast.makeText(this, "Chat baru dibuat", Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            Toast.makeText(this, "Gagal membuat chat baru", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void showChatHistory() {
+        try {
+            JSONArray history = readChatHistory();
+            if (history.length() == 0) {
+                Toast.makeText(this, "Belum ada riwayat chat", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            String[] titles = new String[history.length()];
+            for (int i = history.length() - 1, j = 0; i >= 0; i--, j++) {
+                JSONObject session = history.getJSONObject(i);
+                titles[j] = session.optString("title", "Chat tanpa judul");
+            }
+            new AlertDialog.Builder(this)
+                    .setTitle("RIWAYAT CHAT")
+                    .setItems(titles, (dialog, which) -> {
+                        try {
+                            loadChatSession(history.getJSONObject(history.length() - 1 - which));
+                            setActiveTab(tabChat);
+                            showPanel(chatPanel);
+                        } catch (Exception ignored) {}
+                    })
+                    .setNegativeButton("TUTUP", null)
+                    .show();
+        } catch (Exception ignored) {
+            Toast.makeText(this, "Riwayat chat tidak dapat dibaca", Toast.LENGTH_SHORT).show();
+        }
     }
 
     // ─── Thinking animation ──────────────────────────────────────────────────
@@ -1343,6 +1482,8 @@ public class MainActivity extends Activity {
         pm.getMenu().add(0, 4, 3, "SETUP");
         pm.getMenu().add(0, 5, 4, "AI");
         pm.getMenu().add(0, 6, 5, "REMOTE");
+        pm.getMenu().add(0, 7, 6, "CHAT BARU");
+        pm.getMenu().add(0, 8, 7, "RIWAYAT CHAT");
         pm.setOnMenuItemClickListener(item -> {
             int id = item.getItemId();
             if (id == 1) { setActiveTab(tabChat); showPanel(chatPanel); }
@@ -1351,6 +1492,8 @@ public class MainActivity extends Activity {
             else if (id == 4) { setActiveTab(tabSetup); showPanel(setupPanel); }
             else if (id == 5) { setActiveTab(tabSettings); showPanel(settingsPanel); }
             else if (id == 6) { setActiveTab(tabRemote); showPanel(remotePanel); }
+            else if (id == 7) startNewChat();
+            else if (id == 8) showChatHistory();
             return true;
         });
         pm.show();
