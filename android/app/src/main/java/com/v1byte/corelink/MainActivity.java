@@ -126,40 +126,6 @@ public class MainActivity extends Activity {
     private Runnable thinkingAnimator;
     private static final int PICK_FILE = 401;
 
-    // Tutorial simpel
-    private final String setupStep1 =
-            "pkg update -y\n" +
-            "pkg install -y nodejs git curl ollama\n" +
-            "git clone https://github.com/v1-byte/CORELINK.git\n" +
-            "cd ~/CORELINK/bridge\n" +
-            "cp -n config.template .env\n" +
-            "bash start-termux.sh";
-
-    private final String setupStep2 =
-            "ollama pull qwen2.5:0.5b\n" +
-            "ollama serve";
-
-    private final String setupStep3 = CLOUD_WORKER;
-
-    private final String setupDaily =
-            "cd ~/CORELINK/bridge && bash start-termux.sh";
-
-    private final String setupAllInOne =
-            "# A. PERTAMA KALI\n" +
-            "pkg update -y && pkg install -y nodejs git curl ollama\n" +
-            "git clone https://github.com/v1-byte/CORELINK.git\n" +
-            "cd ~/CORELINK/bridge && cp -n config.template .env && bash start-termux.sh\n" +
-            "\n" +
-            "# B. SETIAP HARI — sesi 1\n" +
-            "cd ~/CORELINK/bridge && bash start-termux.sh\n" +
-            "\n" +
-            "# C. SETIAP HARI — sesi 2 (tab baru)\n" +
-            "ollama serve\n" +
-            "\n" +
-            "# D. APP: LINK → http://127.0.0.1:8787 → CONNECT → CHAT\n" +
-            "# EADDRINUSE 8787 = Bridge sudah OK\n" +
-            "# Model ringan: ollama pull qwen2.5:0.5b";
-
     @Override
     public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -713,12 +679,12 @@ public class MainActivity extends Activity {
         panel.setPadding(dp(16), dp(16), dp(16), dp(24));
         panel.setBackgroundColor(BG);
 
-        TextView heading = makeText("BRIDGE CONNECTION", 12, BLUE);
+        TextView heading = makeText("CLOUD CONNECTION", 12, BLUE);
         heading.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
         heading.setLetterSpacing(0.1f);
         panel.addView(heading);
 
-        TextView desc = makeText("Connect to CORELINK Bridge running on Termux (port 8787).", 12, MUTED);
+        TextView desc = makeText("Terhubung otomatis ke Cloudflare Workers AI.", 12, MUTED);
         desc.setPadding(0, dp(6), 0, dp(14));
         panel.addView(desc);
 
@@ -764,7 +730,7 @@ public class MainActivity extends Activity {
         card.addView(actions);
         panel.addView(card);
 
-        TextView modelLabel = makeText("OLLAMA MODEL", 10, MUTED);
+        TextView modelLabel = makeText("CLOUD AI MODEL", 10, MUTED);
         modelLabel.setTypeface(Typeface.MONOSPACE);
         modelLabel.setPadding(0, dp(20), 0, dp(8));
         panel.addView(modelLabel);
@@ -827,7 +793,7 @@ public class MainActivity extends Activity {
         panel.addView(refreshConn, rlp);
         refreshConn.setOnClickListener(v -> refreshConnectors());
 
-        TextView desc = makeText("Tools are configured via Bridge .env on Termux. Tokens stay on device.", 12, MUTED);
+        TextView desc = makeText("Tools cloud terhubung melalui CORELINK Workers.", 12, MUTED);
         desc.setPadding(0, dp(6), 0, dp(14));
         panel.addView(desc);
 
@@ -838,7 +804,7 @@ public class MainActivity extends Activity {
                 {"Docker", "Off"},
                 {"Vercel", "Not configured"},
                 {"Supabase", "Off"},
-                {"Ollama Local", "Manual connect"},
+                {"Cloudflare Workers AI", "Connected via cloud"},
                 {"HuggingFace / Meta", "Off"}
         };
 
@@ -852,7 +818,7 @@ public class MainActivity extends Activity {
             rowLp.bottomMargin = dp(8);
             row.setLayoutParams(rowLp);
 
-            TextView dot = makeText("●", 12, c[0].contains("Ollama") ? AMBER : MUTED);
+            TextView dot = makeText("●", 12, c[0].contains("Cloudflare") ? GREEN : MUTED);
             row.addView(dot);
 
             LinearLayout info = new LinearLayout(this);
@@ -870,7 +836,7 @@ public class MainActivity extends Activity {
             row.addView(arrow);
 
             row.setOnClickListener(v ->
-                    Toast.makeText(this, c[0] + " is configured in Termux .env", Toast.LENGTH_SHORT).show());
+                    Toast.makeText(this, c[0] + " tersedia melalui cloud", Toast.LENGTH_SHORT).show());
             panel.addView(row);
         }
 
@@ -883,30 +849,7 @@ public class MainActivity extends Activity {
         return wrapper;
     }
 
-    // ─── Setup Panel ─────────────────────────────────────────────────────────
-
-    private void copyText(String label, String value) {
-        ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-        cm.setPrimaryClip(ClipData.newPlainText(label, value));
-        Toast.makeText(this, "Disalin. Tempel di Termux.", Toast.LENGTH_SHORT).show();
-    }
-
-    private Button setupCopyBtn(String title, String payload) {
-        Button b = new Button(this);
-        b.setText(title);
-        b.setTextSize(11);
-        b.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
-        b.setTextColor(Color.WHITE);
-        b.setBackground(makeBg(BLUE, 0, 10));
-        b.setAllCaps(false);
-        b.setMinHeight(0);
-        b.setPadding(dp(10), dp(12), dp(10), dp(12));
-        LinearLayout.LayoutParams p = lp(-1, -2);
-        p.topMargin = dp(8);
-        b.setLayoutParams(p);
-        b.setOnClickListener(v -> copyText(title, payload));
-        return b;
-    }
+    // ─── Cloud Setup Panel ────────────────────────────────────────────────────
 
     private LinearLayout buildSetupPanel() {
         ScrollView scroll = new ScrollView(this);
@@ -915,101 +858,33 @@ public class MainActivity extends Activity {
         panel.setPadding(dp(16), dp(16), dp(16), dp(28));
         panel.setBackgroundColor(BG);
 
-        TextView heading = makeText("SETUP CEPAT", 13, BLUE);
+        TextView heading = makeText("CLOUD AI SETUP", 13, BLUE);
         heading.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
         heading.setLetterSpacing(0.08f);
         panel.addView(heading);
 
-        TextView desc = makeText(
-                "Tinggal SALIN → tempel Termux → Enter. 3 langkah.",
-                12, MUTED);
-        desc.setPadding(0, dp(6), 0, dp(12));
+        TextView desc = makeText("CORELINK sekarang berjalan melalui Cloudflare Workers AI. Tidak perlu Termux, Ollama, atau server lokal.", 12, MUTED);
+        desc.setPadding(0, dp(8), 0, dp(18));
+        desc.setLineSpacing(dp(2), 1.2f);
         panel.addView(desc);
 
-        // STEP 1
-        TextView s1 = makeText("A. PERTAMA KALI (sekali saja)", 11, GREEN);
-        s1.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
-        panel.addView(s1);
-        TextView s1d = makeText("Install semua + Bridge. Sudah clone? Pakai tombol B saja.", 11, MUTED);
-        s1d.setPadding(0, dp(4), 0, dp(6));
-        panel.addView(s1d);
+        TextView endpoint = makeText("CLOUD ENDPOINT\n" + CLOUD_WORKER, 12, Color.rgb(170, 215, 232));
+        endpoint.setTypeface(Typeface.MONOSPACE);
+        endpoint.setBackground(makeBg(CARD, BORDER, 12));
+        endpoint.setPadding(dp(12), dp(14), dp(12), dp(14));
+        panel.addView(endpoint);
 
-        TextView box1 = makeText(setupStep1, 10, Color.rgb(170, 215, 232));
-        box1.setTypeface(Typeface.MONOSPACE);
-        box1.setTextIsSelectable(true);
-        box1.setBackground(makeBg(CARD, BORDER, 12));
-        box1.setPadding(dp(12), dp(12), dp(12), dp(12));
-        panel.addView(box1);
-        panel.addView(setupCopyBtn("SALIN — PERTAMA KALI", setupStep1));
-
-        TextView s1b = makeText("B. SETIAP HARI — Bridge saja", 11, GREEN);
-        s1b.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
-        s1b.setPadding(0, dp(16), 0, 0);
-        panel.addView(s1b);
-        TextView s1bd = makeText("EADDRINUSE 8787 = sudah jalan (OK).", 11, MUTED);
-        s1bd.setPadding(0, dp(4), 0, dp(6));
-        panel.addView(s1bd);
-        panel.addView(setupCopyBtn("SALIN — BRIDGE HARIAN", setupDaily));
-
-        // STEP 2
-        TextView s2 = makeText("C. OLLAMA (tab Termux baru)", 11, GREEN);
-        s2.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
-        s2.setPadding(0, dp(18), 0, 0);
-        panel.addView(s2);
-        TextView s2d = makeText("Jangan tutup Bridge. Model ringan: ollama pull qwen2.5:0.5b", 11, MUTED);
-        s2d.setPadding(0, dp(4), 0, dp(6));
-        panel.addView(s2d);
-
-        TextView box2 = makeText(setupStep2, 10, Color.rgb(170, 215, 232));
-        box2.setTypeface(Typeface.MONOSPACE);
-        box2.setTextIsSelectable(true);
-        box2.setBackground(makeBg(CARD, BORDER, 12));
-        box2.setPadding(dp(12), dp(12), dp(12), dp(12));
-        panel.addView(box2);
-        panel.addView(setupCopyBtn("SALIN — OLLAMA", setupStep2));
-
-        // STEP 3
-        TextView s3 = makeText("D. DI APP", 11, GREEN);
-        s3.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
-        s3.setPadding(0, dp(18), 0, 0);
-        panel.addView(s3);
-        TextView s3d = makeText(
-                "1. Buka tab LINK\n" +
-                "2. Endpoint harus: http://127.0.0.1:8787\n" +
-                "3. Tekan CONNECT\n" +
-                "4. Kembali ke CHAT → kirim pesan\n\n" +
-                "Jangan isi 11434 di app (itu Ollama, bukan Bridge).",
-                12, TEXT);
-        s3d.setPadding(0, dp(6), 0, dp(6));
-        s3d.setLineSpacing(dp(2), 1.2f);
-        panel.addView(s3d);
-        panel.addView(setupCopyBtn("SALIN ENDPOINT", setupStep3));
-
-        // ALL notes
-        TextView tip = makeText(
-                "TIPS\n" +
-                "• Kalau repo sudah di-clone: cukup\n" +
-                "  cd ~/CORELINK/bridge && bash start-termux.sh\n" +
-                "• Token GitHub di .env opsional (boleh kosong)\n" +
-                "• Bridge & Ollama harus tetap hidup saat chat\n" +
-                "• Gagal connect? Cek Termux masih jalan + endpoint 8787",
-                11, MUTED);
-        tip.setTypeface(Typeface.MONOSPACE);
-        tip.setPadding(0, dp(18), 0, 0);
-        tip.setLineSpacing(dp(2), 1.2f);
-        panel.addView(tip);
-
-        panel.addView(setupCopyBtn("SALIN SEMUA CATATAN", setupAllInOne));
+        TextView steps = makeText("CARA MENGGUNAKAN\n\n1. Buka tab LINK\n2. Pastikan status Connected\n3. Buka tab CHAT\n4. Kirim pesan\n\nSemua proses AI berjalan di cloud. Koneksi internet diperlukan.", 12, TEXT);
+        steps.setPadding(0, dp(20), 0, 0);
+        steps.setLineSpacing(dp(3), 1.2f);
+        panel.addView(steps);
 
         scroll.addView(panel);
         LinearLayout wrapper = new LinearLayout(this);
         wrapper.setOrientation(LinearLayout.VERTICAL);
-        wrapper.addView(scroll, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.MATCH_PARENT));
+        wrapper.addView(scroll, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT));
         return wrapper;
     }
-
 
 
     // ─── Remote panel: MyBase + A-Connect (UI list first, logic later) ───────
@@ -1323,7 +1198,7 @@ public class MainActivity extends Activity {
         panel.addView(heading);
 
         TextView desc = makeText(
-                "Atur kepandaian & gaya Ollama. System prompt + temperature dikirim ke Bridge setiap chat.",
+                "Atur gaya Cloud AI. System prompt + temperature dikirim ke Workers setiap chat.",
                 12, MUTED);
         desc.setPadding(0, dp(6), 0, dp(14));
         panel.addView(desc);
@@ -1440,7 +1315,7 @@ public class MainActivity extends Activity {
         });
 
         TextView tip = makeText(
-                "Tips: Mode Smart & Obedient membuat Ollama lebih mengikuti perintah, " +
+                "Tips: Mode Smart & Obedient membuat Cloud AI lebih mengikuti perintah, " +
                 "lebih lengkap, dan minim penolakan. Temperature tinggi = lebih kreatif.",
                 11, MUTED);
         tip.setPadding(0, dp(14), 0, 0);
@@ -1976,7 +1851,7 @@ public class MainActivity extends Activity {
                 appendProcess("Respons diterima (" + json.length() + " chars)");
                 // parse simple online flags
                 String lower = json.toLowerCase();
-                if (lower.contains("ollama")) appendProcess("Ollama: " + (lower.contains("\"online\":true") ? "cek detail JSON" : "lihat status"));
+                if (lower.contains("workers-ai") || lower.contains("cloudflare")) appendProcess("Cloud AI: online");
                 if (lower.contains("github")) appendProcess("GitHub token: " + (lower.contains("\"configured\":true") ? "terkonfigurasi / cek" : "belum"));
                 if (lower.contains("cloudflared")) appendProcess("Cloudflared: dicek");
                 if (lower.contains("docker")) appendProcess("Docker: dicek");
@@ -1999,7 +1874,7 @@ public class MainActivity extends Activity {
             try {
                 request(bridge + "/health", null);
                 appendProcess("Health OK");
-                appendProcess("Ambil model Ollama (/api/ollama/tags) …");
+                appendProcess("Ambil model Cloud AI …");
                 String tags = request(bridge + "/api/ollama/tags", null);
                 ArrayList<String> names = new ArrayList<>();
                 Matcher m = Pattern.compile("\\\"name\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"").matcher(tags);
@@ -2016,10 +1891,10 @@ public class MainActivity extends Activity {
                     if (names.isEmpty()) names.add("No model found");
                     modelSpinner.setAdapter(new ArrayAdapter<>(this,
                             android.R.layout.simple_spinner_dropdown_item, names));
-                    addMessage("assistant", "Bridge connected. Ollama siap menerima pesan.");
+                    addMessage("assistant", "Cloud AI connected. Siap menerima pesan.");
                     setActiveTab(tabChat);
                     showPanel(chatPanel);
-                    Toast.makeText(this, "Bridge connected · " + names.size() + " model(s)", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "Cloud AI connected", Toast.LENGTH_SHORT).show();
                     appendProcess("Terhubung · " + names.size() + " model: " + names);
                     appendProcess("Siap chat");
                 });
@@ -2027,7 +1902,7 @@ public class MainActivity extends Activity {
                 runOnUiThread(() -> {
                     bridgeStatus.setText("  Connection failed");
                     bridgeStatus.setTextColor(RED);
-                    Toast.makeText(this, "Bridge gagal. Jalankan start-termux.sh di Termux.", Toast.LENGTH_LONG).show();
+                    Toast.makeText(this, "Cloud AI belum terhubung. Periksa koneksi internet.", Toast.LENGTH_LONG).show();
                     appendProcess("GAGAL: " + (e.getMessage() == null ? "error" : e.getMessage()));
                 });
             }
@@ -2127,7 +2002,7 @@ public class MainActivity extends Activity {
                 if (attempt < 2) Thread.sleep(350L * (attempt + 1));
             }
         }
-        throw last == null ? new IOException("Koneksi Bridge gagal") : last;
+        throw last == null ? new IOException("Koneksi cloud gagal") : last;
     }
 
     private String requestOnce(String url, String body) throws Exception {
