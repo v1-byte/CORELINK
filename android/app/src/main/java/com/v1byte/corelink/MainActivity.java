@@ -108,6 +108,7 @@ public class MainActivity extends Activity {
     private android.animation.ObjectAnimator sendGlowAnimator;
     private ImageView robotView;
     private ImageView robotGlowView;
+    private ImageView robotBloomView;
     private LinearLayout robotWrap;
     private boolean robotThinking = false;
     private boolean robotBlinkClosed = false;
@@ -590,7 +591,7 @@ public class MainActivity extends Activity {
         robotWrap.setOrientation(LinearLayout.VERTICAL);
         robotWrap.setGravity(Gravity.CENTER_HORIZONTAL);
         robotWrap.setPadding(0, dp(6), 0, dp(2));
-        // Brain static — only circuit lines glow (overlay)
+        // Brain static body + glowing circuit/bloom overlays
         FrameLayout brainStage = new FrameLayout(this);
         robotView = new ImageView(this);
         robotView.setScaleType(ImageView.ScaleType.FIT_CENTER);
@@ -598,18 +599,25 @@ public class MainActivity extends Activity {
         robotGlowView = new ImageView(this);
         robotGlowView.setScaleType(ImageView.ScaleType.FIT_CENTER);
         robotGlowView.setAdjustViewBounds(true);
-        robotGlowView.setAlpha(0f);
+        robotGlowView.setAlpha(0.12f);
+        robotBloomView = new ImageView(this);
+        robotBloomView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        robotBloomView.setAdjustViewBounds(true);
+        robotBloomView.setAlpha(0f);
         try {
             int idle = getResources().getIdentifier("ai_brain_idle", "drawable", getPackageName());
             int glow = getResources().getIdentifier("ai_brain_glow", "drawable", getPackageName());
+            int bloom = getResources().getIdentifier("ai_brain_bloom", "drawable", getPackageName());
             if (idle == 0) idle = getResources().getIdentifier("ai_brain_think", "drawable", getPackageName());
             if (glow == 0) glow = idle;
             if (idle != 0) robotView.setImageResource(idle);
             if (glow != 0) robotGlowView.setImageResource(glow);
+            if (bloom != 0) robotBloomView.setImageResource(bloom);
         } catch (Exception ignored) {}
         FrameLayout.LayoutParams flp = new FrameLayout.LayoutParams(dp(120), dp(120), Gravity.CENTER);
         brainStage.addView(robotView, flp);
         brainStage.addView(robotGlowView, flp);
+        brainStage.addView(robotBloomView, flp);
         robotWrap.addView(brainStage, new LinearLayout.LayoutParams(dp(120), dp(120)));
         panel.addView(robotWrap);
         startRobotIdleAnim();
@@ -1489,6 +1497,7 @@ public class MainActivity extends Activity {
             FrameLayout.LayoutParams flp = new FrameLayout.LayoutParams(s, s, Gravity.CENTER);
             robotView.setLayoutParams(flp);
             if (robotGlowView != null) robotGlowView.setLayoutParams(flp);
+            if (robotBloomView != null) robotBloomView.setLayoutParams(flp);
         }
         robotWrap.setPadding(0, messageCount > 0 ? dp(2) : dp(8), 0, dp(2));
     }
@@ -1498,7 +1507,8 @@ public class MainActivity extends Activity {
         if (robotView == null) return;
         robotView.animate().cancel();
         if (robotGlowView != null) robotGlowView.animate().cancel();
-        // Brain stays STILL — only circuit-line glow changes
+        if (robotBloomView != null) robotBloomView.animate().cancel();
+        // Body stays STILL — light lives on circuit/bloom layers
         robotView.setRotation(0f);
         robotView.setTranslationY(0f);
         robotView.setScaleX(1f);
@@ -1510,45 +1520,111 @@ public class MainActivity extends Activity {
             robotGlowView.setScaleX(1f);
             robotGlowView.setScaleY(1f);
         }
+        if (robotBloomView != null) {
+            robotBloomView.setRotation(0f);
+            robotBloomView.setTranslationY(0f);
+            robotBloomView.setScaleX(1f);
+            robotBloomView.setScaleY(1f);
+        }
         if (thinking) {
             runThinkingMotion();
-        } else if (robotGlowView != null) {
-            robotGlowView.animate().alpha(0.15f).setDuration(400).start();
+        } else {
+            if (robotGlowView != null) robotGlowView.animate().alpha(0.12f).scaleX(1f).scaleY(1f).setDuration(350).start();
+            if (robotBloomView != null) robotBloomView.animate().alpha(0f).scaleX(1f).scaleY(1f).setDuration(350).start();
         }
     }
 
-    /** Thinking: only lines glow (overlay alpha pulse), brain body does not move */
+    /** Thinking: intense circuit + bloom pulse (body still) */
     private void runThinkingMotion() {
-        if (robotGlowView == null || !robotThinking) return;
-        robotGlowView.animate()
-                .alpha(1f)
-                .setDuration(480)
-                .setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator())
-                .withEndAction(() -> {
-                    if (robotGlowView == null || !robotThinking) return;
-                    robotGlowView.animate()
-                            .alpha(0.25f)
-                            .setDuration(480)
-                            .withEndAction(this::runThinkingMotion)
-                            .start();
-                }).start();
+        if (!robotThinking) return;
+        // Peak flash
+        if (robotGlowView != null) {
+            robotGlowView.animate()
+                    .alpha(1f)
+                    .scaleX(1.08f)
+                    .scaleY(1.08f)
+                    .setDuration(280)
+                    .setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator())
+                    .start();
+        }
+        if (robotBloomView != null) {
+            robotBloomView.animate()
+                    .alpha(0.95f)
+                    .scaleX(1.18f)
+                    .scaleY(1.18f)
+                    .setDuration(280)
+                    .withEndAction(() -> {
+                        if (!robotThinking) return;
+                        // Dim trough
+                        if (robotGlowView != null) {
+                            robotGlowView.animate()
+                                    .alpha(0.35f)
+                                    .scaleX(1.02f)
+                                    .scaleY(1.02f)
+                                    .setDuration(320)
+                                    .start();
+                        }
+                        if (robotBloomView != null) {
+                            robotBloomView.animate()
+                                    .alpha(0.15f)
+                                    .scaleX(1.05f)
+                                    .scaleY(1.05f)
+                                    .setDuration(320)
+                                    .withEndAction(() -> {
+                                        if (!robotThinking) return;
+                                        // Second spike
+                                        if (robotGlowView != null) {
+                                            robotGlowView.animate()
+                                                    .alpha(1f)
+                                                    .scaleX(1.12f)
+                                                    .scaleY(1.12f)
+                                                    .setDuration(220)
+                                                    .start();
+                                        }
+                                        if (robotBloomView != null) {
+                                            robotBloomView.animate()
+                                                    .alpha(1f)
+                                                    .scaleX(1.25f)
+                                                    .scaleY(1.25f)
+                                                    .setDuration(220)
+                                                    .withEndAction(this::runThinkingMotion)
+                                                    .start();
+                                        } else {
+                                            runThinkingMotion();
+                                        }
+                                    }).start();
+                        } else {
+                            runThinkingMotion();
+                        }
+                    }).start();
+        } else if (robotGlowView != null) {
+            robotGlowView.animate().alpha(1f).setDuration(300)
+                    .withEndAction(() -> {
+                        if (robotGlowView != null && robotThinking)
+                            robotGlowView.animate().alpha(0.3f).setDuration(300)
+                                    .withEndAction(this::runThinkingMotion).start();
+                    }).start();
+        }
     }
 
     private void startRobotIdleAnim() {
         if (robotAnimRunnable != null) mainHandler.removeCallbacks(robotAnimRunnable);
-        // Idle: brain fully still; circuit lines soft glow pulse only
+        // Idle: body still; soft line shimmer only
         robotAnimRunnable = new Runnable() {
             int tick = 0;
             @Override public void run() {
                 if (robotGlowView == null) return;
                 tick++;
                 if (!robotThinking) {
-                    float al = (tick % 2 == 0) ? 0.35f : 0.08f;
-                    robotGlowView.animate().alpha(al).setDuration(1400)
+                    float al = (tick % 2 == 0) ? 0.28f : 0.06f;
+                    robotGlowView.animate().alpha(al).setDuration(1600)
                             .setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator())
                             .start();
+                    if (robotBloomView != null) {
+                        robotBloomView.animate().alpha(tick % 2 == 0 ? 0.12f : 0f).setDuration(1600).start();
+                    }
                 }
-                mainHandler.postDelayed(this, 1500);
+                mainHandler.postDelayed(this, 1700);
             }
         };
         mainHandler.post(robotAnimRunnable);
