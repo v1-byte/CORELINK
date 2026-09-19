@@ -117,7 +117,7 @@ public class MainActivity extends Activity {
 
     // State
     private String bridge = "";
-    private String connectionMode = "workers"; // workers | local
+    private String connectionMode = "workers";
     private String systemPrompt = "";
     private float temperature = 0.85f;
     private String attachmentName = "", attachmentMime = "", attachmentBase64 = "";
@@ -126,7 +126,7 @@ public class MainActivity extends Activity {
     private Runnable thinkingAnimator;
     private static final int PICK_FILE = 401;
 
-    // Setup Workers (no Termux)
+    // Setup Workers only.
     private final String setupStep1 =
             "npm i -g wrangler\n" +
             "cd CORELINK/workers\n" +
@@ -144,7 +144,7 @@ public class MainActivity extends Activity {
             "wrangler deploy";
 
     private final String setupAllInOne =
-            "# MODE WORKERS — tanpa Termux / Ollama di HP\n" +
+            "# MODE WORKERS — AI cloud\n" +
             "1. npm i -g wrangler\n" +
             "2. cd CORELINK/workers && wrangler login\n" +
             "3. wrangler secret put LLM_API_KEY\n" +
@@ -159,9 +159,8 @@ public class MainActivity extends Activity {
     public void onCreate(Bundle state) {
         super.onCreate(state);
         prefs = getSharedPreferences("corelink", MODE_PRIVATE);
-        connectionMode = prefs.getString("mode", "workers");
-        bridge = prefs.getString("bridge", "");
-        if (bridge.isEmpty() && "local".equals(connectionMode)) bridge = "http://127.0.0.1:8787";
+        connectionMode = "workers";
+        bridge = prefs.getString("bridge", "https://corelink-ai.corelink-ai.workers.dev");
         systemPrompt = prefs.getString("system_prompt", DEFAULT_SMART_PROMPT);
         temperature = prefs.getFloat("temperature", 0.85f);
         Window w = getWindow();
@@ -589,19 +588,26 @@ public class MainActivity extends Activity {
         robotWrap.setOrientation(LinearLayout.VERTICAL);
         robotWrap.setGravity(Gravity.CENTER_HORIZONTAL);
         robotWrap.setPadding(0, dp(6), 0, dp(2));
-        // Floating robot (no background, no sound) — visual motion only
+        // Neon brain mascot: base image plus a pulsing glow overlay while thinking.
+        FrameLayout brainStage = new FrameLayout(this);
         robotView = new ImageView(this);
         robotView.setScaleType(ImageView.ScaleType.FIT_CENTER);
         robotView.setAdjustViewBounds(true);
+        robotGlowView = new ImageView(this);
+        robotGlowView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        robotGlowView.setAdjustViewBounds(true);
+        robotGlowView.setAlpha(0f);
         try {
-            int rid = getResources().getIdentifier("robot_float", "drawable", getPackageName());
-            if (rid == 0) rid = getResources().getIdentifier("robot_mascot", "drawable", getPackageName());
-            if (rid != 0) robotView.setImageResource(rid);
+            int idle = getResources().getIdentifier("ai_brain_idle", "drawable", getPackageName());
+            int glow = getResources().getIdentifier("ai_brain_glow", "drawable", getPackageName());
+            if (idle != 0) robotView.setImageResource(idle);
+            if (glow != 0) robotGlowView.setImageResource(glow);
         } catch (Exception ignored) {}
-        robotWrap.addView(robotView, lp(130, 150));
-        // glow/bloom unused for this mascot
-        robotGlowView = null;
-        robotBloomView = null;
+        FrameLayout.LayoutParams brainLp = new FrameLayout.LayoutParams(dp(130), dp(130), Gravity.CENTER);
+        brainStage.addView(robotView, brainLp);
+        brainStage.addView(robotGlowView, brainLp);
+        robotWrap.addView(brainStage, new LinearLayout.LayoutParams(dp(130), dp(130)));
+        robotBloomView = robotGlowView;
         panel.addView(robotWrap);
         startRobotIdleAnim();
 
@@ -707,7 +713,7 @@ public class MainActivity extends Activity {
         heading.setLetterSpacing(0.1f);
         panel.addView(heading);
 
-        TextView desc = makeText("Mode WORKERS (default): tempel URL Cloudflare Workers.\nTanpa Termux / Ollama di HP.", 12, MUTED);
+        TextView desc = makeText("Mode WORKERS: AI berjalan di Cloudflare Workers.", 12, MUTED);
         desc.setPadding(0, dp(6), 0, dp(14));
         panel.addView(desc);
 
@@ -754,7 +760,7 @@ public class MainActivity extends Activity {
         card.addView(actions);
         panel.addView(card);
 
-        TextView modelLabel = makeText("OLLAMA MODEL", 10, MUTED);
+        TextView modelLabel = makeText("WORKERS AI MODEL", 10, MUTED);
         modelLabel.setTypeface(Typeface.MONOSPACE);
         modelLabel.setPadding(0, dp(20), 0, dp(8));
         panel.addView(modelLabel);
@@ -828,7 +834,7 @@ public class MainActivity extends Activity {
                 {"Docker", "Off"},
                 {"Vercel", "Not configured"},
                 {"Supabase", "Off"},
-                {"Ollama Local", "Manual connect"},
+                {"Cloudflare Workers AI", "Cloud connected"},
                 {"HuggingFace / Meta", "Off"}
         };
 
@@ -842,7 +848,7 @@ public class MainActivity extends Activity {
             rowLp.bottomMargin = dp(8);
             row.setLayoutParams(rowLp);
 
-            TextView dot = makeText("●", 12, c[0].contains("Ollama") ? AMBER : MUTED);
+            TextView dot = makeText("●", 12, c[0].contains("Workers") ? GREEN : MUTED);
             row.addView(dot);
 
             LinearLayout info = new LinearLayout(this);
@@ -911,7 +917,7 @@ public class MainActivity extends Activity {
         panel.addView(heading);
 
         TextView desc = makeText(
-                "Mode WORKERS: deploy di PC → URL di tab LINK. Tanpa Termux.",
+                "Mode WORKERS: deploy di PC lalu gunakan URL workers.dev.",
                 12, MUTED);
         desc.setPadding(0, dp(6), 0, dp(12));
         panel.addView(desc);
@@ -968,7 +974,7 @@ public class MainActivity extends Activity {
                 "2. Endpoint: https://....workers.dev\n" +
                 "3. Tekan CONNECT\n" +
                 "4. Kembali ke CHAT → kirim pesan\n\n" +
-                "Jangan isi 11434 di app (itu Ollama, bukan Bridge).",
+                "Gunakan URL workers.dev yang aktif.",
                 12, TEXT);
         s3d.setPadding(0, dp(6), 0, dp(6));
         s3d.setLineSpacing(dp(2), 1.2f);
@@ -978,10 +984,8 @@ public class MainActivity extends Activity {
         // ALL notes
         TextView tip = makeText(
                 "TIPS\n" +
-                "• Kalau repo sudah di-clone: cukup\n" +
-                "  cd ~/CORELINK/bridge && bash start-termux.sh\n" +
-                "• Token GitHub di .env opsional (boleh kosong)\n" +
-                "• Bridge & Ollama harus tetap hidup saat chat\n" +
+                "• Pastikan URL Workers aktif dan secret AI sudah tersedia\n" +
+                "• Semua proses AI berjalan di cloud\n" +
                 "• Gagal connect? Cek URL Workers + secret LLM_API_KEY",
                 11, MUTED);
         tip.setTypeface(Typeface.MONOSPACE);
@@ -1313,7 +1317,7 @@ public class MainActivity extends Activity {
         panel.addView(heading);
 
         TextView desc = makeText(
-                "Atur kepandaian & gaya Ollama. System prompt + temperature dikirim ke Bridge setiap chat.",
+                "Atur kepandaian & gaya Workers AI. System prompt + temperature dikirim ke cloud setiap chat.",
                 12, MUTED);
         desc.setPadding(0, dp(6), 0, dp(14));
         panel.addView(desc);
@@ -1430,7 +1434,7 @@ public class MainActivity extends Activity {
         });
 
         TextView tip = makeText(
-                "Tips: Mode Smart & Obedient membuat Ollama lebih mengikuti perintah, " +
+                "Tips: Mode Smart & Obedient membuat Workers AI lebih mengikuti perintah, " +
                 "lebih lengkap, dan minim penolakan. Temperature tinggi = lebih kreatif.",
                 11, MUTED);
         tip.setPadding(0, dp(14), 0, 0);
@@ -1475,10 +1479,18 @@ public class MainActivity extends Activity {
         if (robotView == null || robotWrap == null) return;
         int w = messageCount > 0 ? dp(72) : dp(130);
         int h = messageCount > 0 ? dp(84) : dp(150);
-        LinearLayout.LayoutParams rlp = (LinearLayout.LayoutParams) robotView.getLayoutParams();
-        if (rlp == null) rlp = lp(w, h);
+        android.view.ViewGroup.LayoutParams rlp = robotView.getLayoutParams();
+        if (rlp == null) rlp = new android.view.ViewGroup.LayoutParams(w, h);
         else { rlp.width = w; rlp.height = h; }
         robotView.setLayoutParams(rlp);
+        if (robotGlowView != null) {
+            android.view.ViewGroup.LayoutParams glp = robotGlowView.getLayoutParams();
+            if (glp != null) {
+                glp.width = w;
+                glp.height = h;
+                robotGlowView.setLayoutParams(glp);
+            }
+        }
         robotWrap.setPadding(0, messageCount > 0 ? dp(2) : dp(8), 0, dp(2));
     }
 
@@ -1486,11 +1498,11 @@ public class MainActivity extends Activity {
         robotThinking = thinking;
         if (robotView == null) return;
         robotView.animate().cancel();
-        // Visual only — no sound / music
+        if (robotGlowView != null) robotGlowView.animate().cancel();
+        // Visual only — silent neon pulse, no local AI process.
         if (thinking) {
-            // Image: robot duduk berpikir + gelembung (saat bot akan jawab)
             try {
-                int tid = getResources().getIdentifier("robot_thinking", "drawable", getPackageName());
+                int tid = getResources().getIdentifier("ai_brain_think", "drawable", getPackageName());
                 if (tid != 0) robotView.setImageResource(tid);
             } catch (Exception ignored) {}
             robotView.setRotation(0f);
@@ -1500,15 +1512,24 @@ public class MainActivity extends Activity {
             robotView.setAlpha(0f);
             robotView.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(280)
                     .withEndAction(this::runThinkingMotion).start();
+            if (robotGlowView != null) {
+                robotGlowView.setScaleX(0.9f);
+                robotGlowView.setScaleY(0.9f);
+                robotGlowView.animate().alpha(0.82f).scaleX(1.12f).scaleY(1.12f)
+                        .setDuration(600).setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator()).start();
+            }
         } else {
             try {
-                int rid = getResources().getIdentifier("robot_float", "drawable", getPackageName());
+                int rid = getResources().getIdentifier("ai_brain_idle", "drawable", getPackageName());
                 if (rid != 0) robotView.setImageResource(rid);
             } catch (Exception ignored) {}
             robotView.setRotation(0f);
             robotView.setScaleX(1f);
             robotView.setScaleY(1f);
             robotView.setAlpha(1f);
+            if (robotGlowView != null) {
+                robotGlowView.animate().alpha(0f).setDuration(260).start();
+            }
         }
     }
 
@@ -1516,27 +1537,36 @@ public class MainActivity extends Activity {
     private void runThinkingMotion() {
         if (robotView == null || !robotThinking) return;
         robotView.animate()
-                .scaleX(1.05f)
-                .scaleY(1.05f)
-                .translationY(-dp(4))
-                .setDuration(500)
+                .scaleX(1.06f)
+                .scaleY(1.06f)
+                .rotation(1.2f)
+                .translationY(-dp(5))
+                .setDuration(650)
                 .setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator())
                 .withEndAction(() -> {
                     if (robotView == null || !robotThinking) return;
                     robotView.animate()
                             .scaleX(1f)
                             .scaleY(1f)
+                            .rotation(-1.2f)
                             .translationY(0f)
-                            .setDuration(500)
+                            .setDuration(650)
                             .withEndAction(this::runThinkingMotion)
                             .start();
+                    if (robotGlowView != null) {
+                        robotGlowView.animate().alpha(0.28f).scaleX(0.96f).scaleY(0.96f)
+                                .setDuration(650)
+                                .withEndAction(() -> {
+                                    if (robotThinking) robotGlowView.animate().alpha(0.86f).scaleX(1.14f).scaleY(1.14f).setDuration(650).start();
+                                }).start();
+                    }
                 }).start();
     }
 
     private void startRobotIdleAnim() {
         if (robotAnimRunnable != null) mainHandler.removeCallbacks(robotAnimRunnable);
         try {
-            int rid = getResources().getIdentifier("robot_float", "drawable", getPackageName());
+            int rid = getResources().getIdentifier("ai_brain_idle", "drawable", getPackageName());
             if (rid != 0 && robotView != null) robotView.setImageResource(rid);
         } catch (Exception ignored) {}
         // Idle hover — silent, no music
@@ -1561,7 +1591,7 @@ public class MainActivity extends Activity {
     }
 
     private void refreshRobotFrame() {
-        // static brain + glow overlay — no frame swap needed
+        // The brain glow is animated by setRobotThinking/runThinkingMotion.
     }
 
     /** Simple mascot: idle arms down + blink; thinking hand on head */
@@ -1980,7 +2010,7 @@ public class MainActivity extends Activity {
                 appendProcess("Respons diterima (" + json.length() + " chars)");
                 // parse simple online flags
                 String lower = json.toLowerCase();
-                if (lower.contains("ollama")) appendProcess("Ollama: " + (lower.contains("\"online\":true") ? "cek detail JSON" : "lihat status"));
+                if (lower.contains("workers") || lower.contains("cloudflare")) appendProcess("Workers AI: online");
                 if (lower.contains("github")) appendProcess("GitHub token: " + (lower.contains("\"configured\":true") ? "terkonfigurasi / cek" : "belum"));
                 if (lower.contains("cloudflared")) appendProcess("Cloudflared: dicek");
                 if (lower.contains("docker")) appendProcess("Docker: dicek");
@@ -1994,18 +2024,18 @@ public class MainActivity extends Activity {
 
     private void connectBridge() {
         bridge = endpointInput.getText().toString().trim().replaceAll("/$", "");
-        connectionMode = bridge.contains("127.0.0.1") || bridge.contains("localhost") ? "local" : "workers";
+        connectionMode = "workers";
         prefs.edit().putString("bridge", bridge).putString("mode", connectionMode).apply();
         bridgeStatus.setText("  Connecting…");
         bridgeStatus.setTextColor(AMBER);
-        appendProcess("Mulai koneksi Bridge → " + bridge);
+        appendProcess("Mulai koneksi Workers → " + bridge);
         appendProcess("Cek /health …");
 
         executor.execute(() -> {
             try {
                 request(bridge + "/health", null);
                 appendProcess("Health OK");
-                appendProcess("Ambil model Ollama (/api/ollama/tags) …");
+                appendProcess("Ambil model Workers AI …");
                 String tags = request(bridge + "/api/ollama/tags", null);
                 ArrayList<String> names = new ArrayList<>();
                 Matcher m = Pattern.compile("\\\"name\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"").matcher(tags);
@@ -2022,7 +2052,7 @@ public class MainActivity extends Activity {
                     if (names.isEmpty()) names.add("No model found");
                     modelSpinner.setAdapter(new ArrayAdapter<>(this,
                             android.R.layout.simple_spinner_dropdown_item, names));
-                    addMessage("assistant", "Bridge connected. Ollama siap menerima pesan.");
+                    addMessage("assistant", "Workers AI connected. Siap menerima pesan.");
                     setActiveTab(tabChat);
                     showPanel(chatPanel);
                     Toast.makeText(this, "Workers connected · " + names.size() + " model(s)", Toast.LENGTH_SHORT).show();
