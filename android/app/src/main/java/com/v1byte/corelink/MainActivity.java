@@ -1489,8 +1489,23 @@ public class MainActivity extends Activity {
         robotView.animate().cancel();
         // Visual only — no sound / music
         if (thinking) {
-            runThinkingMotion();
+            // Image: robot duduk berpikir + gelembung (saat bot akan jawab)
+            try {
+                int tid = getResources().getIdentifier("robot_thinking", "drawable", getPackageName());
+                if (tid != 0) robotView.setImageResource(tid);
+            } catch (Exception ignored) {}
+            robotView.setRotation(0f);
+            robotView.setTranslationY(0f);
+            robotView.setScaleX(0.92f);
+            robotView.setScaleY(0.92f);
+            robotView.setAlpha(0f);
+            robotView.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(280)
+                    .withEndAction(this::runThinkingMotion).start();
         } else {
+            try {
+                int rid = getResources().getIdentifier("robot_float", "drawable", getPackageName());
+                if (rid != 0) robotView.setImageResource(rid);
+            } catch (Exception ignored) {}
             robotView.setRotation(0f);
             robotView.setScaleX(1f);
             robotView.setScaleY(1f);
@@ -1498,36 +1513,24 @@ public class MainActivity extends Activity {
         }
     }
 
-    /** Thinking: float + pulse (silent) */
+    /** Thinking pose: soft pulse on thought-bubble robot (silent) */
     private void runThinkingMotion() {
         if (robotView == null || !robotThinking) return;
         robotView.animate()
-                .translationY(-dp(12))
-                .rotation(-4f)
-                .scaleX(1.06f)
-                .scaleY(1.06f)
-                .alpha(1f)
-                .setDuration(450)
+                .scaleX(1.05f)
+                .scaleY(1.05f)
+                .translationY(-dp(4))
+                .setDuration(500)
                 .setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator())
                 .withEndAction(() -> {
                     if (robotView == null || !robotThinking) return;
                     robotView.animate()
-                            .translationY(dp(4))
-                            .rotation(4f)
-                            .scaleX(0.98f)
-                            .scaleY(0.98f)
-                            .setDuration(450)
-                            .withEndAction(() -> {
-                                if (robotView == null || !robotThinking) return;
-                                robotView.animate()
-                                        .translationY(-dp(6))
-                                        .rotation(0f)
-                                        .scaleX(1.03f)
-                                        .scaleY(1.03f)
-                                        .setDuration(400)
-                                        .withEndAction(this::runThinkingMotion)
-                                        .start();
-                            }).start();
+                            .scaleX(1f)
+                            .scaleY(1f)
+                            .translationY(0f)
+                            .setDuration(500)
+                            .withEndAction(this::runThinkingMotion)
+                            .start();
                 }).start();
     }
 
