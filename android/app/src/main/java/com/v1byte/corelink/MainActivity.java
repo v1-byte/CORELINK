@@ -116,7 +116,8 @@ public class MainActivity extends Activity {
     private int messageCount = 0;
 
     // State
-    private String bridge = "http://127.0.0.1:8787";
+    private static final String CLOUD_WORKER = "https://corelink-ai.corelink-ai.workers.dev";
+    private String bridge = CLOUD_WORKER;
     private String systemPrompt = "";
     private float temperature = 0.85f;
     private String attachmentName = "", attachmentMime = "", attachmentBase64 = "";
@@ -138,7 +139,7 @@ public class MainActivity extends Activity {
             "ollama pull qwen2.5:0.5b\n" +
             "ollama serve";
 
-    private final String setupStep3 = "http://127.0.0.1:8787";
+    private final String setupStep3 = CLOUD_WORKER;
 
     private final String setupDaily =
             "cd ~/CORELINK/bridge && bash start-termux.sh";
@@ -163,7 +164,7 @@ public class MainActivity extends Activity {
     public void onCreate(Bundle state) {
         super.onCreate(state);
         prefs = getSharedPreferences("corelink", MODE_PRIVATE);
-        bridge = prefs.getString("bridge", "http://127.0.0.1:8787");
+        bridge = prefs.getString("bridge", CLOUD_WORKER);
         systemPrompt = prefs.getString("system_prompt", DEFAULT_SMART_PROMPT);
         temperature = prefs.getFloat("temperature", 0.85f);
         Window w = getWindow();
