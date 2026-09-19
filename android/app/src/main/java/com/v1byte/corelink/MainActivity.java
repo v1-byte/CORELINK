@@ -165,10 +165,11 @@ public class MainActivity extends Activity {
         temperature = prefs.getFloat("temperature", 0.85f);
         Window w = getWindow();
         w.setStatusBarColor(BG);
-        w.setNavigationBarColor(BG);
+        w.setNavigationBarColor(SURFACE);
         if (android.os.Build.VERSION.SDK_INT >= 23) {
-            w.getDecorView().setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+            int flags = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+            if (android.os.Build.VERSION.SDK_INT >= 26) flags |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+            w.getDecorView().setSystemUiVisibility(flags);
         }
         w.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         buildUI();
@@ -484,7 +485,7 @@ public class MainActivity extends Activity {
         TextView title = makeText("AI CONNECTOR", 16, TEXT);
         title.setTypeface(Typeface.DEFAULT_BOLD);
         titles.addView(title);
-        TextView sub = makeText("CORELINK  •  BRIDGE OS", 9, BLUE);
+        TextView sub = makeText("CORELINK  •  WORKERS AI", 9, BLUE);
         sub.setTypeface(Typeface.MONOSPACE);
         titles.addView(sub);
         header.addView(titles, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
@@ -502,6 +503,21 @@ public class MainActivity extends Activity {
         menuBtn.setOnClickListener(v -> showNavMenu(v));
         header.addView(menuBtn);
         rootLayout.addView(header);
+
+        // Visible white navigation bar. The three-dot menu remains available as a shortcut.
+        LinearLayout navbar = new LinearLayout(this);
+        navbar.setOrientation(LinearLayout.HORIZONTAL);
+        navbar.setGravity(Gravity.CENTER_VERTICAL);
+        navbar.setPadding(dp(8), dp(7), dp(8), dp(7));
+        navbar.setBackgroundColor(SURFACE);
+        navbar.addView(tabChat, tabLp());
+        navbar.addView(tabBridge, tabLp());
+        navbar.addView(tabTools, tabLp());
+        navbar.addView(tabSetup, tabLp());
+        navbar.addView(tabSettings, tabLp());
+        navbar.addView(tabRemote, tabLp());
+        rootLayout.addView(navbar, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
         // Content
         FrameLayout content = new FrameLayout(this);
